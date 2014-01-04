@@ -1,0 +1,13 @@
+.wp_weixin_robot_table_head_tr{
+	height:35px;
+	vertical-align:inherit;
+	line-height:35px;
+	color:#21759b;
+	font-size:14px;
+}
+
+.wp_weixin_robot_table_head_td{
+	text-align:center;
+	color:#21759b;
+	font-size:14px;
+}
