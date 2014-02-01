@@ -196,7 +196,7 @@ class wp_spider_option{
 
 
 
-if((isset($_POST['submit'])) && ($_POST['submit']=='清空记录') ){
+if((isset($_POST['submit'])) && ($_POST['submit']=='清空记录') && isset($_GET['page']) && ('wp-spider' == $_GET['page'])){
 	global $spider;
 	$spider->clear();
 }
