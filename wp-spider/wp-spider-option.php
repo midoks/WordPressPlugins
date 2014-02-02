@@ -184,7 +184,7 @@ class wp_spider_option{
 			echo("<span style='margin-left:5px;'><a href='".$thisPageUrl.$next."#'>>></a></span>");
 			echo("<span style='margin-left:5px;'><a href='".$thisPageUrl.$total_page."#' class='fixed'>尾页</a></span>");
 
-			echo("<span style='margin-left:30px;'>共{$total}页|</span>");
+			echo("<span style='margin-left:30px;'>共{$total}条数据|</span>");
 			echo("<span>当前第{$position}页</span>");
 			//////////////////////////////////////////////
 			//echo '</ul></div></div>';
