@@ -16,3 +16,7 @@
 - WP微信机器人插件:wp-weixin-robot
 - WP静态化:wp-cache-html
 - 搜索引擎蜘蛛记录:wp-spider
+
+### 捐助
+
+- 如果你觉得写WP插件还有用,请[捐助我](http://me.alipay.com/midoks)。我也是需要鼓励的。
