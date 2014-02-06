@@ -9,20 +9,6 @@
  */
 define('WP_OPT_RUNTIME_ROOT', str_replace('\\', '/', dirname(__FILE__)).'/');
 
-
-
-
-
-
-
-
-
-
-//function __disable_feature($data) { return false; }
-//add_filter('comments_number', '__disable_feature');
-//add_filter('comments_open', '__disable_feature');
-
-
 add_action('init', 'wp_opt_runtion_func');
 
 function wp_opt_runtion_func(){
@@ -34,7 +20,9 @@ function wp_opt_runtion_func(){
 	}
 }
 
-new wp_opt_runtime();
+if(is_admin()){
+	new wp_opt_runtime();
+}
 //后台控制
 class wp_opt_runtime{
 
