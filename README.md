@@ -16,6 +16,7 @@
 - WP微信机器人插件:wp-weixin-robot
 - WP静态化:wp-cache-html
 - 搜索引擎蜘蛛记录:wp-spider
+- WP运行优化:wp-opt-runtime
 
 ### 捐助
 
