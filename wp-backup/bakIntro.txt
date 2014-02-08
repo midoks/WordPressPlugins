@@ -1,0 +1,58 @@
+<div class="wrap" style="width:600px;">
+	<h2>WordPress代码备份插件(百度网盘)</h2>
+	<p>感谢你使用由midoks写的代码备份插件</p>
+	<h2>WordPress代码备份插件设置</h2>
+
+	<h3>步骤1</h3>
+	<p>打开config.php文件(这个基本不用修改)</p>
+<pre>//备份相关
+//--------------------------------
+//是否是否备份
+define('BACKUP_BOOL', true);
+//是否开启zip压缩上传(经我测试,开启压缩备份最安全)
+define('BACKUP_ZIP', true);
+//定义备份文件前缀
+define('BACKUP_NAME_PREFIX', 'wp');
+//要备份的目录(绝对路径)
+define('BACKUP_DIR', ABSPATH);
+</pre>
+
+	<h3>步骤2</h3>
+	<p>打开pcs/config.php文件(根据需求)</p>
+
+<pre>
+//API Kye
+define('BACKUP_API_KEY', '百度应用api key');
+//Secret Key
+define('BACKUP_SECRET_KEY', '百度应用secret key');
+//应用名称
+define('BACKUP_BP_APP_NAME', '百度应用名称');
+//直达URL(前地址)
+define('BACKUP_REDIRECT_URL_PREFIX', 'http://你的地址/wp-cron.php?type=bakcode_go');
+//直达URL
+define('BACKUP_REDIRECT_URL', 'http://你的地址/wp-cron.php?type=bakcode_netdisk_oauth');
+</pre>
+
+	<h3>步骤3</h3>
+	<p>登陆百度开发者应用(http://developer.baidu.com/)->管理中心->你使用应用的位置->API管理->安全设置</p>
+	<p>1.填写的你域名地址|2.填写你的授权回调页(http://你的地址/wp-cron.php?type=bakcode_netdisk_oauth)</p>
+
+	<h3>步骤4</h3>
+	<p>如果配置没有问题,先用过浏览器进入http://你的地址/wp-cron.php?type=bakcode_go</p>
+	<p>这会跳转回来到百度应用授权,同意之后,会跳到'http://你的地址/wp-cron.php?type=bakcode_netdisk_oauth'</p>
+
+	<h3>步骤5</h3>
+	<p>进入百度应用云环境->服务管理->定时间计划任务(Cron)</p>
+	<p>根据你的需求设置!!!@@</p>
+	<h3>步骤6</h3>
+	<p>执行一次后,没有报错就进入百度个人网盘->我的应用数据</p>
+	<p></p>
+	<p></p>
+	<p></p>
+	<p></p>
+	<p><a target="_blank" href="https://me.alipay.com/midoks" title="你的捐助,让我更有信心写出更好的代码!!!">捐助我</a></p>
+	<p>希望你能用的开心!!!</p>
+	<p>请关注我的博客:<a href="http://midoks.cachecha.com/" target="_blank">midoks.cachecha.com</a></p>
+	<p>能为你服务,我感到无限的兴奋</p>
+</div>
+
