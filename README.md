@@ -17,6 +17,7 @@
 - WP静态化:wp-cache-html
 - 搜索引擎蜘蛛记录:wp-spider
 - WP运行优化:wp-opt-runtime
+- WP查询数据包:wp-cache-db
 
 ### 捐助
 
