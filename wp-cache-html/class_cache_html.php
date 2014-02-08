@@ -65,8 +65,6 @@ class class_cache_html{
 
 		if(is_user_logged_in()){return false;}//echo '用户登录了,不保存页面';
 	
-
-
 		//基本
 		if(is_single()||is_category()||is_home()){return true;}
 		return true;

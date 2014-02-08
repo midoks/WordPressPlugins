@@ -1,9 +1,9 @@
 <?php
 /*
-Plugin Name: wp-cache-html
+Plugin Name: WP页面静态化
 Plugin URI: http://midoks.cachecha.com/
-Description: wp-cache-html 
-Version: 2.0
+Description: 页面静态化(保存你整个页面信息,不用再次解析)
+Version: 2.1
 Author: Midoks
 Author URI: http://midoks.cachecha.com/
  */
@@ -22,26 +22,27 @@ define('WP_CACHE_HTML_LIB', WP_CACHE_HTML_ROOT.'lib/');
  * aliyun 	阿里云
  * SaeStorage 新浪云SaeStorage
  */
-$option = get_option('wp_cache_html_options');
-define('WP_CACHE_HTML_METHOD', $option['method']);
-//缓存html时间 s
-define('WP_CACHE_HTML_TIME', ($option['timeout'] * 60));
-//是否优化保存
-define('WP_CACHE_HTML_OPT_SAVED', true);
+
+if(!is_admin()){
+	$option = get_option('wp_cache_html_options');
+	define('WP_CACHE_HTML_METHOD', $option['method']);
+	//缓存html时间 s
+	define('WP_CACHE_HTML_TIME', ($option['timeout'] * 60));
+	//是否优化保存
+	define('WP_CACHE_HTML_OPT_SAVED', true);
+	
+
+	////////////////////
+	include(WP_CACHE_HTML_ROOT.'class_cache_html.php');
+	global $class_cache_html;
+	$class_cache_html = new class_cache_html();
+	global $time_ing_begin;
+	$time_ing_begin = $class_cache_html->time_ing();
+	$class_cache_html->set();
+}
+/******* WP_CACHE_HTML end ********/
 //POS
 define('WP_CACHE_HTML_POS' , __FILE__);
-
-//if(!empty($options)){
-////////////////////
-include(WP_CACHE_HTML_ROOT.'class_cache_html.php');
-global $class_cache_html;
-$class_cache_html = new class_cache_html();
-global $time_ing_begin;
-$time_ing_begin = $class_cache_html->time_ing();
-$class_cache_html->set();
-//}
-/******* WP_CACHE_HTML end ********/
-
 
 //var_dump(WP_CACHE_HTML_METHOD);
 

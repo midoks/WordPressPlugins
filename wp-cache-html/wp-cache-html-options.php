@@ -72,6 +72,7 @@ class wp_cache_html_options{
 		$options = get_option('wp_cache_html_options');?>
 		<select name="wp_cache_html_options[method]" id="method" />
 			<option value="local" <?php if('local'==$options['method']) echo "selected='selected'"; ?>>local</option>
+			<option value="Memcache" <?php if('Memcache'==$options['method']) echo "selected='selected'"; ?>>memcache</option>
 			<option value="baidubcs" <?php if('baidubcs'==$options['method']) echo "selected='selected'"; ?>>baidubcs(百度云储存)</option>
 			<option value="NFS" <?php if('NFS'==$options['method']) echo "selected='selected'"; ?>>NFS(百度云)</option>
 			<option value="qiniu" <?php if('qiniu'==$options['method']) echo "selected='selected'"; ?>>七牛(云存储)</option>
@@ -105,7 +106,7 @@ class wp_cache_html_options{
 
 	public function wp_cache_html_menu(){
 
-		add_options_page('wp-cache-html',
+		add_options_page('WP页面静态化',
 						'页面静态化',
 						'manage_options',
 						'wp_cache_html',
@@ -130,6 +131,9 @@ class wp_cache_html_options{
 		echo '<p>4.使用七牛云存储,都要填写(速度有点慢,但是能忍受)<p>';
 		echo '<p>5.使用阿里云存储,都要填写(速度中等)<p>';
 		echo '<p>6.使用新浪云存储,只需填写文件名(较好,也许是我在本地环境)<p>';
+		echo '<p>7.增加了Memcache支持(也许是我在本地环境)<p>';
+		echo '<p>note:如果会PHP,可直接在lib下增加你的扩展!!!<p>';
+		echo '<p>note:如果你发现有BUG,请立即通知我!!!<p>';
 		echo '<hr/>';
 		echo '<p>请关注我的博客:<a href="http://midoks.cachecha.com/" target="_blank">midoks.cachecha.com</a></p>';
 		echo '<p><a href="http://me.alipay.com/midoks" target="_blank">捐助我</a></p>';

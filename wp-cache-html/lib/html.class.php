@@ -10,6 +10,7 @@ class html{
 	}
 
 	public function read($fn){
+		return false;
 	}
 
 	public function ftime($fn){
