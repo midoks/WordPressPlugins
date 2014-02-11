@@ -13,6 +13,8 @@ Weixin connected to the WordPress, use the information you faster
 == Description ==
 
 Weixin connected to the WordPress, use the information you faster
+By weixin APP (weixin.qq.com) information coming through the wordpress plugin wp-weixin-robot call back information. 
+May use the advanced interface (https://api.weixin.qq.com/).
 
 == Installation ==
 
