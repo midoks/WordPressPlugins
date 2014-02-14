@@ -2,7 +2,7 @@
 /*
  * Plugin Name: WP附件管理
  * Plugin URI: http://midoks.cachecha.com/
- * Description: WP附件地址管理(百度bcs ...)[针对个人博客]
+ * Description: WP附件地址管理(本地,百度bcs,阿里云)[针对个人博客]
  * Version: 3.0
  * Author: Midoks
  * Author URI: http://midoks.cachecha.com/
