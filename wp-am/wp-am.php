@@ -44,7 +44,8 @@ class wp_am{
 		$option['bucket_name'] = 'wordpress'; //bucket名字(文件)
 		$option['file_prefix'] = ''; //文件前缀(默认)
 		$option['file_type'] = '0'; //文件格式
-		$option['file_referer'] = '*'; //文件格式
+		$option['file_referer'] = '*'; //防盗链
+		$option['local_backup'] = false; //是否开启本地备份
 		add_option('wp_am_option', $option);
 	}
 
