@@ -18,6 +18,7 @@
 - 搜索引擎蜘蛛记录:wp-spider
 - WP运行优化:wp-opt-runtime
 - WP查询数据保存:wp-cache-db
+- WP附件管理:wp-am
 
 ### 捐助
 
