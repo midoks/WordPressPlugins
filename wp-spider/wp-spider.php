@@ -117,6 +117,7 @@ class wp_spider{
 			'msnbot' => 'MSN',
 			'360Spider'=>'360',
 			'DNSPod'=>'DNSPod',
+			'JianKongBao'=> '监控宝',
 		);
 		return $spider_list;
 	}
