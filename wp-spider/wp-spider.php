@@ -107,6 +107,7 @@ class wp_spider{
 			'googlebot' => '谷歌',
 			'mediapartners-google' => 'Google Adsense',
 			'baiduspider' => '百度',
+			'bingbot' => '必应',
 			'slurp' => '雅虎',
 			'Sogou' => '搜狗',
 			'sosospider' => '腾讯SOSO',
