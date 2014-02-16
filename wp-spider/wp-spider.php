@@ -118,6 +118,7 @@ class wp_spider{
 			'360Spider'=>'360',
 			'DNSPod'=>'DNSPod',
 			'JianKongBao'=> '监控宝',
+			'YYSpider' => '云云搜索',
 		);
 		return $spider_list;
 	}
