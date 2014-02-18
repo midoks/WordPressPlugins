@@ -19,6 +19,7 @@
 - WP运行优化:wp-opt-runtime
 - WP查询数据保存:wp-cache-db
 - WP附件管理:wp-am
+- WP代码备份:wp-backup
 
 ### 捐助
 
