@@ -7,7 +7,7 @@ class weixin_robot_textreplay{
 	public $obj = null;
 	public $kw = '';//关键字
 
-	public $list_cmd = array('0','today','n5', 'h5', 'r5', '?');
+	public $list_cmd = array('$', '#', '@','today','n', 'h', 'r', '?');
 
 	/**
 	 *	@func 构造函数
@@ -27,8 +27,18 @@ class weixin_robot_textreplay{
 	//文本结果返回
 	public function wx_result(){
 		$kw = $this->kw;
+
 		if($kw == '?'){
 			return $this->obj->toMsgText($this->obj->options['weixin_robot_helper']);//显示帮助信息
+		}
+
+		//聊天模式
+		$this->chat_mode($kw);
+
+		
+		//文章信息
+		if($wp_cmd = $this->wordpress_cmd($kw)){//执行后,结束
+			return $wp_cmd;
 		}
 
 		//用户自定义关键字回复
@@ -36,38 +46,67 @@ class weixin_robot_textreplay{
 			return $user_cmd;
 		}
 
-		//文章信息
-		if($wp_cmd = $this->wordpress_cmd($kw)){//执行后,结束
-			return $wp_cmd;
-		}
-
 		//插件接口调用
 		if($wp_plugins = $this->obj->plugins->dealwith('text', $kw)){
 			return $wp_plugins;
 		}
-	
+
 		return $this->obj->helper();//显示帮助信息
+	}
+
+	public function chat_mode($kw){
+		$option = $this->obj->options;
+		if('true' == $option['weixin_robot_chat_mode']){
+			if(!empty($option['weixin_robot_reply_id'])){
+				$this->chat_mode_on($kw);
+			}
+		}
+	}
+
+	public function chat_mode_on($kw){
+		$option = $this->obj->options;
+		$info = $this->obj->info;
+
+		if(strpos($kw, ':')){//自己ID向其他ID回复
+			$in = explode(':', $kw);
+			$send = substr($kw, strpos($kw,':')+1);
+			$send = mb_convert_encoding($send, 'UTF-8');
+			if($option['weixin_robot_reply_id'] == $info['FromUserName']){
+				$res = $this->obj->pushMsgText($in[0], $send);
+				$data = json_decode($res, true);
+				if('ok'==$data['errmsg']){
+					$this->obj->pushMsgText($option['weixin_robot_reply_id'], 'send success!!!');
+				}else{
+					$this->obj->pushMsgText($option['weixin_robot_reply_id'], 'send fail!!!');
+				}
+			}
+			//echo '1';
+		}else{//无":" ;其他ID向自己ID回复
+			if($option['weixin_robot_reply_id'] != $info['FromUserName']){
+				$res = $this->obj->pushMsgText($option['weixin_robot_reply_id'], $info['FromUserName'].':'.$kw);
+			}
+			//echo '2';
+		}
 	}
 
 	//用户自定义关键字回复
 	public function user_keyword_cmd($kw){
 		$data = $this->obj->db->weixin_get_relpy_data();
-		//var_dump($data);
 		if($data){
 			$arr = array();
 			foreach($data as $k=>$v){
 				if('1' == $v['status']){
 					if($kw == $v['keyword'] && 'text' == $v['type']){
-						if(in_array($v['relpy'], $this->list_cmd)){
+						if(in_array($v['relpy'], $this->list_cmd) || in_array(substr($kw,0,1), $this->list_cmd)){
 							return $this->wordpress_cmd($v['relpy']);
 						}else{
 							return $this->obj->toMsgText($v['relpy']);
 						}
 					}else if($kw == $v['keyword'] && 'id' == $v['type']){
-						if(in_array($v['relpy'], $this->list_cmd)){//这是为兼容错误
+						if(in_array($v['relpy'], $this->list_cmd) || in_array(substr($kw,0,1), $this->list_cmd)){//这是为兼容错误
 							return $this->wordpress_cmd($v['relpy']);
 						}else{
-							if(count($idsc = explode(',', $v['relpy']))>1){			
+							if(count($idsc = explode(',', $v['relpy']))>1){
 								$data = $this->obj->wp_db->Qids($idsc);
 							}else{
 								$data = $this->obj->wp_db->Qid(trim($v['relpy'],','));
@@ -90,16 +129,37 @@ class weixin_robot_textreplay{
 	//wordpress文件信息(主要的)
 	public function wordpress_cmd($kw){
 		$wp =  $this->obj->wp_db;
+		$prefix = substr($kw, 0, 1);
+		$suffix = substr($kw, 1);
+		$res = '';
+
+
+		$int = intval($suffix);
+		if($int<1){
+			$int = 5;
+		}else if($int >10){
+			$int = 10;
+		}
+
+		switch($prefix){
+			case 'n': $res = $wp->news($int);break;
+			case 'h': $res = $wp->hot($int);break;
+			case 'r': $res = $wp->rand($int);break;
+			case '#': $res = $wp->get_tag_list($suffix);break;
+			default: break;
+		}
+
+		if(!empty($res)){
+			return $res;
+		}
+
 		switch($kw){
-			case '0'		: $res = $wp->get_category_list();break;
+			case '@'		: $res = $wp->get_category_list();break;	
 			case 'today'	: $res = $wp->today();break;
-			case 'n5'		: $res = $wp->new5();break;
-			case 'h5'		: $res = $wp->hot5();break;
-			case 'r5'		: $res = $wp->rand5();break;
 			case 'p?'		: $res = $wp->total();break;
 			default			: $res = $wp->pageView($kw);break;
 		}
-		wp_reset_query();
+
 		return $res;
 	}
 

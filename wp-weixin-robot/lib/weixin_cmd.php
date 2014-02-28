@@ -4,11 +4,12 @@
  *	Author: Midoks
  *  Author URI: http://midoks.cachecha.com/
  */
-class weixin_cmd{
+include(WEIXIN_ROOT.'weixin-core.class.php');
+class weixin_cmd extends weixin_core{
 
 	public $info_xml = '';//解析前的数据
 	public $info = array();//解析的数据
-	public $obj = null;//模板对象
+
 	public $db = null;//自动义数据库操作对象
 	public $wp_db = null; //wordpress 方法定义数据对象
 	public $plugins = null;//插件对象
@@ -17,17 +18,21 @@ class weixin_cmd{
 	public $replay_type = '';
 
 	//架构函数
-	//@param object $obj
 	public function __construct(){
-		//选项
 		$this->options = get_option('weixin_robot_options');
-
-		//实例化消息模板类
-      	include_once(WEIXIN_ROOT_LIB.'weixin_robot_tpl.php');
-		$this->obj = new weixin_robot_tpl();
+		parent::__construct();
 		//处理信息
-		$this->info_xml = $GLOBALS['HTTP_RAW_POST_DATA'];//POST数据
-		 //解析后的数据
+		if(!isset($HTTP_RAW_POST_DATA)){
+			$data = file_get_contents('php://input');
+			if(!empty($data))
+				$this->info_xml = $data;
+			else
+				if(!isset($_GET['debug']))
+					exit('你的请求问题!!!');
+		}else{
+			$this->info_xml = $HTTP_RAW_POST_DATA;//POST数据
+		}
+		//解析后的数据
 		$this->info = $this->parse_xml($this->info_xml);
 
 		include(WEIXIN_ROOT_API.'weixin_robot_api_wordpress_dbs.php');
@@ -36,9 +41,7 @@ class weixin_cmd{
 		include_once(WEIXIN_ROOT_API.'weixin_robot_api_wordpress.php');
 		$this->wp_db = new weixin_robot_api_wordpress($this);//wordpress数据库管理
 
-
-		include_once(WEIXIN_ROOT.'wp-weixin-plugins.php');
-		$this->plugins = new wp_weixin_plugins($this);//插件管理对象
+		
 	}
 
 	//解析xml文件
@@ -57,7 +60,6 @@ class weixin_cmd{
             //显示模拟信息
           	//测试地址:www.cachecha.com/?midoks&debug=1
 			if(isset($_GET['debug'])){
-				//var_dump($this->options);
 				if('true' == $this->options['weixin_robot_debug']){
 					$array['MsgType'] = 'text';//text,event
 					$array['FromUserName'] = 'userid';
@@ -73,11 +75,12 @@ class weixin_cmd{
 				}else{
 					exit('哈哈,哈哈哈,哈哈,哼,你走吧!!!');
 				}
-				//var_dump($this->info);
 			}
 		}
 
-		//var_dump($this->info);
+		include_once(WEIXIN_ROOT.'wp-weixin-plugins.php');
+		$this->plugins = new wp_weixin_plugins($this);//插件管理对象
+
 		//回复选择
 		$result = $this->cmd_choose();
 		//开启数据库记录判断
@@ -89,41 +92,42 @@ class weixin_cmd{
 
 	public function weixin_robot_wp_db_insert(){
 		$db = $this->db;
+		$info = $this->info;
 			
-		$from = $this->info['FromUserName'];
-		$to = $this->info['ToUserName'];
-	   	$msgid = $this->info['MsgId'];
-		$msgtype = $this->info['MsgType'];
-		$createtime = $this->info['CreateTime'];
+		$from = $info['FromUserName'];
+		$to = $info['ToUserName'];
+	   	$msgid = isset($info['MsgId']) ? $info['MsgId']: '';
+		$msgtype = $info['MsgType'];
+		$createtime = $info['CreateTime'];
 
 		//文本内容
-		$content = $this->info['Content'];
+		$content = isset($info['Content']) ? $info['Content']: '';
 
 		//图片资源
-		$picurl = $this->info['PicUrl'];
+		$picurl = isset($info['PicUrl']) ? $info['PicUrl']: '';
 
 		//地理位置上传
-		$location_x = $this->info['Location_X']; 
-		$location_y = $this->info['Location_Y'];
-		$scale = $this->info['Scale'];
-		$label =  $this->info['Label'];
+		$location_x = isset($info['Location_X']) ? $info['Location_X']: '';
+		$location_y = isset($info['Location_Y']) ? $info['Location_Y']: '';
+		$scale = isset($info['Scale']) ? $info['Scale']: '';
+		$label = isset($info['Label']) ? $info['Label']: '';
 
 		//link分享
-	   	$title= $this->info['Title'];
-	   	$description = $this->info['Description'];
-		$url =  $this->info['Url'];
+	   	$title= isset($info['Title']) ? $info['Title']: '';
+	   	$description = isset($info['Description']) ? $info['Description']: '';
+		$url = isset($info['Url']) ? $info['Url']: '';
 
 		//事件
-		$event = $this->info['Event'];
-		$eventkey = $this->info['EventKey'];
+		$event = isset($info['Event']) ? $info['Event']: '';
+		$eventkey = isset($info['EventKey']) ? $info['EventKey']: '';
 
 		//语音识别
-		$format = $this->info['Format'];
-		$recognition =  $this->info['Recognition'];
+		$format = isset($info['Format']) ? $info['Format']: '';
+		$recognition = isset($info['Recognition']) ? $info['Recognition']: '';
 
 		//资源ID
-		$mediaid =  $this->info['MediaId']; 
-		$thumbmediaid = $this->info['ThumbMediaId'];
+		$mediaid = isset($info['MediaId']) ? $info['MediaId']: '';
+		$thumbmediaid = isset($info['ThumbMediaId']) ? $info['ThumbMediaId']: '';
 
 		//回复
 		$response = (!empty($this->replay_type)) ? $this->replay_type : '无回复';
@@ -270,111 +274,5 @@ class weixin_cmd{
   	public function smallPic(){
   		return WEIXIN_ROOT_NA.'80_80/'.mt_rand(1,10).'.jpg';
   	}
-
-/*******************************需要修改(上)*********************************/
-	/**
-	 * @func 返回文本信信息
-	 * @param $Msg 信息
-	 * @ret string xml
-	 * exp:
-	 * echo $this->toMsgText($contentStr);//文本地址
-	 */
-	public function toMsgText($Msg){
-		$this->replay_type = '文本回复';
-		$Msg = mb_substr($Msg, 0 , 680, 'utf-8');
-		return $this->obj->toMsgText($this->info['FromUserName'], $this->info['ToUserName'], $Msg);
-	}
-
-	/**
-	 * @func 返回图片信息(测试未成功)
- 	 * @param $pic 图片信息
-	 * @ret string xml
-	 * exp:
-	 * echo $this->toMsgPic($pic);//图
-	 */
-	public function toMsgPic($Pic){
-		$this->replay_type = '图片回复';
-  		return $this->obj->toMsgPic($this->info['FromUserName'], $this->info['ToUserName'], $Pic);
-	}
-
-	/**
-	 * @func 返回voice xml
-	 * @param $title //标题
-	 * @param $desc //描述
-	 * @param $MusicUrl //地址
-	 * @param $HQMusicUrl //高清播放(会首先选择)
-	 * @ret string xml
-	 * exp:
-	 //echo $this->toMsgVoice('声音','当男人好难！', $MusicUrl, $MusicUrl);//voice
-	 */
-	public function toMsgVoice($title, $desc, $MusicUrl, $HQMusicUrl){
-		$this->replay_type = '声音回复';
-		return $this->obj->toMsgVoice($this->info['FromUserName'], $this->info['ToUserName'], $title, $desc, $MusicUrl, $HQMusicUrl);
-	}
-
-	/**
-	 * @func 返回video xml
-	 * @param 通过上传多媒体文件,得到id
-	 * @param 缩图的媒体ID,通过上传多媒体文件,得到的id
-	 * @ret string xml
-	 */
-	public function toMsgVideo($media_id, $thumb_media_id){
-		$this->replay_type = '视频回复';
-		return $this->obj->toMsgVideo($this->info['FromUserName'], $this->info['ToUserName'], $media_id, $thumb_media_id);
-	}
-
- 	/**
-	 * @func 返回图文
-	 * @param array $info
-	 * @param array $array 
-	 * @ret string xml
-	 * exp
-	 * $textPic = array(
-			array(
-				'title'=> '标题',
-				'desc'=> '描述',
-				'pic'=> $this->bigPic(),//图片地址
-				'link'=>$pic,//图片链接地址
-			),//第一个图片为大图
-			array(
-				'title'=> '标题',
-				'desc'=> '描述',
-				'pic'=> $this->smallPic(),//图片地址
-				'link'=> '',//图片链接地址
-			),//此自以后皆为小图
-			array(
-				'title'=> '标题',
-				'desc' => '描述',
-				'pic'  => $this->smallPic(),//图片地址
-				'link' => '',//图片链接地址
-			),
-			array(
-				'title'=> '标题',
-				'desc' => '描述',
-				'pic'  => $this->smallPic(),//图片地址
-				'link' => '',//图片链接地址
-			),
-			array(
-				'title'=> '标题',
-				'desc' => '描述',
-				'pic'  => $this->smallPic(),//图片地址
-				'link' => '',//图片链接地址
-			),
-			array(
-				'title'=> '标题',
-				'desc' => '描述',
-				'pic'  => $this->smallPic(),//图片地址
-				'link' => '',//图片链接地址
-			),
-		);
-	//echo $this->toMsgTextPic($textPic);//图文
-	*/
-	public function toMsgTextPic($picTextInfo){
-		$this->replay_type = '图文回复';
-		$obj['fromUserName'] = $this->info['FromUserName'];
-        $obj['toUserName'] = $this->info['ToUserName'];
-		$obj['time'] = $this->info['CreateTime'];
-  		return $this->obj->toMsgTextPic($picTextInfo, $obj);
-	}
 }
 ?>

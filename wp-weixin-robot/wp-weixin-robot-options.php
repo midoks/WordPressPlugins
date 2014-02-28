@@ -1,7 +1,10 @@
 <?php
-class wp_weixin_robot_options{
+include(WEIXIN_ROOT.'weixin-core.class.php');
+class wp_weixin_robot_options extends weixin_core{
 
 	public $options = null;
+	public $obj = null;
+	public $plugins = null;
 
 	public $errMsg = '';
 
@@ -9,9 +12,17 @@ class wp_weixin_robot_options{
 
 	//构造函数
 	public function __construct(){
+		//获取配置数据
+		$this->options = get_option('weixin_robot_options');
+		parent::__construct();
+
 		//数据库操作类,初始化...
 		include_once(WEIXIN_ROOT_API.'weixin_robot_api_wordpress_dbs.php');
 		$this->db = new weixin_robot_api_wordpress_dbs();
+
+		//机器人扩展操作
+		include(WEIXIN_ROOT.'wp-weixin-plugins.php');
+		$this->plugins = new wp_weixin_plugins($this);
 
 		//插件安装时调用
 		register_activation_hook(WEIXIN_ROOT_POS, array($this, 'weixin_robot_install'));
@@ -24,13 +35,10 @@ class wp_weixin_robot_options{
 		//系统初始化
 		add_action('init', array($this, 'ajax'), 1);
 
-
 		//微信面板菜单设置初始化
 		add_action('admin_init', array($this, 'weixin_robot_setting_init'), 1);
 		//微信面板菜单设置
 		add_action('admin_menu', array($this, 'weixin_robot_menu'), 1);
-
-		
 
 		//警告提示
 		//add_action( 'admin_notices', array($this,'notices'));
@@ -50,10 +58,15 @@ class wp_weixin_robot_options{
 	}
 
 	public function ajax(){
-
-		if(isset($_POST['page']) && 'weixin_robot_push_today' == $_POST['page']){
-			//接受ajax请求
-			$this->weixin_robot_push_today_ajax();
+		if(isset($_POST['page'])){
+			switch($_POST['page']){
+				case 'weixin_robot_push_today':$res = $this->weixin_robot_push_today_ajax();break;
+				case 'weixin_robot_count';$res = $this->weixin_robot_count_ajax();break;
+				case 'weixin_robot_menu_setting';$res = $this->weixin_robot_menu_setting_ajax();break;
+				case 'weixin_robot_setting_keyword_relpy';$res = $this->weixin_robot_setting_keyword_relpy_ajax();break;
+				default: $res = '';break;
+			}
+			echo $res;
 		}
 	}
 
@@ -98,17 +111,7 @@ class wp_weixin_robot_options{
 		$text .= "关键字查询:?你好!?\n(~?~后明面的?表示关键字多少页)\n";
 		$text .= "关键字查询:?你好!1\n(~?~后明面的1表示关键字的第几页)\n";
 		$text .= "上面的!表示分割符\n";
-		//分类查询
 
-		//linux
-		//$text .= "\n提供linux命令查询:\n";
-		//$text .= "例:.ls(查询ls命令用法)\n";
-		//$text .= "因为有字数限制,所有显示有限.\n";
-		//music
-		//$text .= "\n提供歌词搜索:\n";
-		//$text .= "例:大海 张雨生\n";
-		//$text .= "(前为歌名,后为歌手)\n";
-		//$text .= ".~!+-*/。|和空格分割";
 		//ad
 		$text .= "midoks竭诚为你服务\nmidoks.cachecha.com\n(博客地址)\n";
 		return $text;
@@ -117,9 +120,7 @@ class wp_weixin_robot_options{
 
 	//插件安装时调用
 	public function weixin_robot_install(){
-		//服务号配置
-		$weixin_robot_options['ai'] = '';
-		$weixin_robot_options['as'] = '';
+		
 		//订阅时,给用户的提示信息
 		$weixin_robot_options['subscribe'] = '欢迎订阅,回复?提供帮助信息';
 		//文章最优处理
@@ -136,14 +137,27 @@ class wp_weixin_robot_options{
 		$weixin_robot_options['weixin_robot_helper_is'] = 'false';
 		//推送今日文章
 		$weixin_robot_options['weixin_robot_push_today'] = '';
+
+		
+
+		//服务号配置
+		$weixin_robot_options['ai'] = '';
+		$weixin_robot_options['as'] = '';
+		
+		//token
+		$weixin_robot_options['weixin_robot_token'] = '';
+
+		//是否开启对话聊天模式
+		$weixin_robot_options['weixin_robot_chat_mode'] = 'false';//服务号配置正确后,才生效(默认不开启)
+		$weixin_robot_options['weixin_robot_reply_id'] = '';//回复ID
+
 		add_option('weixin_robot_options', $weixin_robot_options);
-		add_option('weixin_robot_token', '');
 
 		//创建数据库
-	
 		$this->db->create_table();
 		$this->db->create_table_relpy();
 		$this->db->create_table_menu();
+		$this->db->create_extends();
 	}
 
 	//插件卸载时调用
@@ -151,11 +165,11 @@ class wp_weixin_robot_options{
 
 		//删除基本配置
 		delete_option('weixin_robot_options');
-		delete_option('weixin_robot_token');
 		
 		$this->db->delete();
 		$this->db->delete_relpy();
 		$this->db->delete_menu();
+		$this->db->delete_extends();
 	}
 
 	//过滤设置功能插件功能显示
@@ -171,7 +185,7 @@ class wp_weixin_robot_options{
 	//微信面板菜单设置
 	public function weixin_robot_menu(){
 		//添加主目录
-		add_menu_page('weixin_robot',
+		add_menu_page('微信机器人',
 			_('微信机器人'),
 			'manage_options',
 			'weixin_robot',
@@ -198,17 +212,37 @@ class wp_weixin_robot_options{
 			array($this, 'weixin_robot_count'));
 		add_submenu_page('weixin_robot',
 			'weixin_robot',	
-			'微信自定义设置',
+			'微信关键字回复设置',
+			'manage_options',
+			'weixin_robot_setting_keyword_relpy',
+			array($this, 'weixin_robot_setting_keyword_relpy'));
+		add_submenu_page('weixin_robot',
+			'weixin_robot',	
+			'微信菜单设置',
 			'manage_options',
 			'weixin_robot_menu_setting',
 			array($this, 'weixin_robot_menu_setting'));
 
-		/*add_submenu_page('weixin_robot',
+		add_submenu_page('weixin_robot',
+			'weixin_robot',	
+			'微信扩展管理',
+			'manage_options',
+			'weixin_robot_extends',
+			array($this, 'weixin_robot_extends'));
+
+		/**add_submenu_page('weixin_robot',
 			'weixin_robot',	
 			'微信文章推送',
 			'manage_options',
-			'weixin_robot_push_today',
-			array($this, 'weixin_robot_push_today'));*/
+			'weixin_robot_push',
+			array($this, 'weixin_robot_push'));*/
+
+		/*add_submenu_page('weixin_robot',
+			'weixin_robot',	
+			'微信测试',
+			'manage_options',
+			'weixin_robot_menu_testing',
+			array($this, 'weixin_robot_menu_testing'));*/
 	
 	}
 
@@ -219,9 +253,6 @@ class wp_weixin_robot_options{
 
 	//初始化设置
 	public function weixin_robot_setting_init(){
-		//获取配置数据
-		$this->options = get_option('weixin_robot_options');
-
 
 		if(isset($_POST['weixin_db_clear'])){
 			$this->db->clear();
@@ -230,33 +261,27 @@ class wp_weixin_robot_options{
 		//更新数据
 		if( isset($_POST['submit']) && $_POST['weixin_robot_setting']){
 			$newp = $_POST['weixin_robot_options'];
-			//if($this->options != $newp){
 			$this->options['ai'] = $newp['ai'];
 			$this->options['as'] = $newp['as'];
 			$this->options['subscribe'] = $newp['subscribe'];
-			$this->options['opt_pic_show'] = $newp['opt_pic_show'];
-			$this->options['opt_big_show'] = $newp['opt_big_show'];
+			$this->options['opt_pic_show'] = empty($newp['opt_pic_show']) ? '' : $newp['opt_pic_show'];
+			$this->options['opt_big_show'] = empty($newp['opt_big_show']) ? '' : $newp['opt_big_show'];
 			$this->options['opt_small_show'] = $newp['opt_small_show'];
 			$this->options['weixin_robot_debug'] = $newp['weixin_robot_debug'];
 			$this->options['weixin_robot_record'] = $newp['weixin_robot_record'];
 			$this->options['weixin_robot_helper'] = trim($newp['weixin_robot_helper']);
 			$this->options['weixin_robot_helper_is'] = $newp['weixin_robot_helper_is'];
+			$this->options['weixin_robot_chat_mode'] = $newp['weixin_robot_chat_mode'];
+			$this->options['weixin_robot_reply_id'] = $newp['weixin_robot_reply_id'];
 			update_option('weixin_robot_options', $this->options);
-			//$this->options = $newp;
-			//}
-			//var_dump($this->options);
 		}
 
 		register_setting('weixin_robot_setting', 'weixin_robot_setting',  'weixin_robot_setting');
 		//基础
 		add_settings_section('weixin_robot_setting', __('请填写或选择你的配置','sh'),
 			array($this, 'weixin_robot_setting_init_base'), 'weixin_robot_setting');
-		//ai
-		//add_settings_field('ai', __('AI','sh'), array($this, 'am_ak'), 'weixin_robot_setting', 'weixin_robot_setting');
-	
 	}
 
-	//请不要删除底部加载文件
 	public function weixin_robot_footer(){
 		echo '<script language="javascript" type="text/javascript" src="http://js.users.51.la/16589822.js"></script>';
 		$t = <<<EOT
@@ -331,13 +356,23 @@ EOT;
 		echo '<tr valign="top"><th scope="row">appsecret</th>';
 		echo '<td><input type="text" name="weixin_robot_options[as]" value="'
 			.$options['as'].'" size="35"></input><br />appsecret(第三方用户唯一凭证密钥)</td></tr>';
+
+		//是否开启聊天模式
+		echo '<tr  valign="top"><th scope="row">是否开启聊天模式</th>';
+		echo '<td><input type="checkbox" name="weixin_robot_options[weixin_robot_chat_mode]"  value="true"';
+		if( $options['weixin_robot_chat_mode'] == 'true' ){ echo ' checked="checked"'; }
+		echo '/></td></tr>';
+
+		//回复ID
+		echo '<tr valign="top"><th scope="row">回复ID</th>';
+		echo '<td><input type="text" name="weixin_robot_options[weixin_robot_reply_id]" value="'
+			.$options['weixin_robot_reply_id'].'" size="35"></input><br />回复ID</td></tr>';
+
 	}
-
-
-	//服务号信息
+	
+	//配置信息
 	public function weixin_robot_setting_show(){
-		echo '<div class="wrap">';
-		echo '<div class="narrow">';
+		echo '<div class="wrap"><div class="narrow">';
 		echo '<form  method="POST">';
 		echo '<h1>微信机器人配置</h1>';
 		echo '<table class="form-table">';
@@ -348,10 +383,7 @@ EOT;
 		echo '<p class="submit">';
 		echo '<input name="submit" type="submit" class="button-primary" value="保存设置" />';
 		echo '<input style="margin-left:20px" name="weixin_db_clear" type="submit" class="button-primary" value="清空数据" />';
-		echo '</p>';
-		echo '</form>';
-		echo '</div>';
-		echo '</div>';?>
+		echo '</p></form></div></div>';?>
 		<p>请关注我的博客:<a href="http://midoks.cachecha.com/" target="_blank">midoks.cachecha.com</a></p>
 		<p><a href="http://me.alipay.com/midoks" target="_blank">捐助我</a></p>
 		<p>能为你服务,我感到无限的兴奋</p><?php
@@ -367,25 +399,24 @@ EOT;
 /////////////////////////////////////////////////////////
 	public function weixin_robot_stat_web(){
 		$url = WEIXIN_ROOT_URL;
-		/* css */
-$css = <<<EOT
-<link type="text/css" rel="stylesheet" href="{$url}/html/weixin_robot_stat.css" />
-EOT;
-		/* js */	
-$js = <<<EOT
-<script type="text/javascript" src="{$url}/html/jquery_plugin_menu.js"></script>
-<script type="text/javascript" src="{$url}/html/weixin_robot_stat.js"></script>
-EOT;
-
 		if(isset($_GET['page'])){
 			if('weixin_robot_stat' == $_GET['page']){
-				echo $css;
-				echo $js;
+				echo '<link type="text/css" rel="stylesheet" href="'.$url.'/html/weixin_robot_stat.css" />';
+				echo '<script type="text/javascript" src="'.$url.'/html/jquery_plugin_menu.js"></script>';
+				echo '<script type="text/javascript" src="'.$url.'/html/weixin_robot_stat.js"></script>';
 			}else if('weixin_robot_count'==$_GET['page']){//使用ichatjs开源项目 http://www.ichartjs.com/
 				//我写的附加管理与它不兼容
 				echo '<script type="text/javascript" src="'.WEIXIN_ROOT_URL.'/html/ichart.min.js"></script>';
-			}else if('weixin_robot_push_today' == $_GET['page'] ){
+				echo '<script type="text/javascript" src="'.WEIXIN_ROOT_URL.'/html/ichart.count.js"></script>';
+			}else if('weixin_robot_push_today' == $_GET['page'] ){//推送设置
 				echo '<script type="text/javascript" src="'.WEIXIN_ROOT_URL.'/html/weixin_robot_push_today.js"></script>';
+			}else if('weixin_robot_menu_setting' == $_GET['page']){//菜单设置
+				echo '<script type="text/javascript" src="'.WEIXIN_ROOT_URL.'/html/weixin_robot_menu_setting.js"></script>';
+				echo '<link type="text/css" rel="stylesheet" href="'.$url.'/html/hover.css" />';
+				echo '<link type="text/css" rel="stylesheet" href="'.$url.'/html/weixin_robot_menu_setting.css" />';
+			}else if('weixin_robot_setting_keyword_relpy' == $_GET['page']){
+				echo '<link type="text/css" rel="stylesheet" href="'.$url.'/html/hover.css" />';
+				echo '<script type="text/javascript" src="'.WEIXIN_ROOT_URL.'/html/weixin_robot_setting_keyword_relpy.js"></script>';
 			}
 		}
 	}
@@ -428,7 +459,7 @@ EOT;
 			<td style='text-align:center;width:100px'>%s</td></tr>";
 		$tableBodyTpl = '';
 		$data = $db->weixin_get_data($paged);
-	
+
 		foreach($data as $k=>$v){
 				//var_dump($v);
 			$tableHeadTpl .= sprintf($tableTrTpl,   $v['id'], $v['to'], $v['from'],
@@ -450,9 +481,7 @@ EOT;
 		//分页显示
 		echo '<tr><td colspan="6">';
 		echo($this->weixin_info_page($c, $paged, $pageNum));
-		echo '</td></tr>';
-		echo '</tfoot>';
-		echo '</table></div></div>';
+		echo '</td></tr></tfoot></table></div></div>';
 	}
 
 	public function type_replace($type){
@@ -524,17 +553,26 @@ EOT;
 	//下为菜单设置 |　自定义关键字回复
 ////////////////////////////////////////////////////////////
 
-	public function weixin_robot_menu_api($ai, $as){
-		include(WEIXIN_ROOT_LIB.'weixin_robot_menu_api.php');
-		$api = new weixin_robot_menu_api($ai, $as);
-		return $api; 
+	public function weixin_robot_setting_keyword_relpy_ajax(){
+		switch($_POST['method']){
+			case 'update':$res = $this->weixin_robot_setting_keyword_relpy_ajax_update();break;
+			default: $res ='fail';break;
+		}
+		return $res;
 	}
-	
-	public function weixin_robot_menu_setting(){
-		//关键字自定义回复
-		$this->weixin_robot_setting_keyword_relpy();
-		//关键字菜单自定设置
-		$this->weixin_robot_menu_setting_page();
+
+	public function weixin_robot_setting_keyword_relpy_ajax_update(){
+		$id = $_POST['id'];
+		$keyword = $_POST['keyword'];
+		$reply = strip_tags($_POST['reply']);
+		$type = $_POST['type'];
+		//return json_encode($_POST);
+		$res = $this->db->change_reply($id, $keyword, $reply, $type);
+		if($res){
+			return 'ok';
+		}else{
+			return 'fail';
+		}
 	}
 
 	public function weixin_robot_setting_keyword_relpy(){
@@ -590,14 +628,14 @@ EOT;
 		if($data){
 			foreach($data as $k=>$v){
 				$trTpl = "<tr>
-				<td style='width:40px;text-align:center;' scope='col'>{$v['id']}</td>
+				<td style='width:80px;text-align:center;' scope='col'>{$v['id']}</td>
 				<td style='width:100px;text-align:center;' scope='col'>{$v['keyword']}</td>
 				<td style='text-align:center;' scope='col'>{$v['relpy']}</td>
 				<td style='width:100px;text-align:center;' scope='col'>{$v['type']}</td>
-				<td style='width:100px;text-align:center;' scope='col'>";
+				<td style='width:200px;text-align:center;' scope='col'>";
 
 				$trTpl .= '<input type="hidden" name="id" value="'.$v['id'].'" />';
-				$trTpl .= '<input name="submit_key" type="submit"  value="';
+				$trTpl .= '<input name="submit_key" class="button" type="submit"  value="';
 				if($v['status']){
 					$trTpl .= '禁用';
 				}else{
@@ -605,7 +643,8 @@ EOT;
 				}
 				$trTpl .= '" />';
 				$trTpl .=" | ";
-				$trTpl .= '<input name="submit_key" type="submit" value="删除" />';
+				$trTpl .= '<input name="submit_key" class="button" type="submit" value="删除" />';
+				$trTpl .= '|<span class="weixin_robot_mv button wobble-to-top-right">修改</span>';
 
 				$trTpl .= "</td></tr>";
 				echo '<form  method="POST">';
@@ -642,7 +681,7 @@ STR;
 		echo '<tr valign="top"><th scope="row">回复信息</th>';
 		echo '<td><textarea name="option[word]" style="width:350px;height:50px;" class="regular-text code"></textarea><br />';
 		echo '<p>如果选择"图文ID"选项,应该填写文章ID: 1,4,8(图文最多显示10个信息)</p>';
-		echo '<p>如果选择"文本回复"选项,可以是使用0,today,n5, h5, r5, ?等内置命令!!</p>';
+		echo '<p>如果选择"文本回复"选项,可以是使用@(分类信息),#(标签信息),today(今日发布),n(1-10)最新信息, h(1-10)热门信息, r(1-10)随机信息, ?(帮助信息)等内置命令!!</p>';
 		echo '<p>不满足上面的话,则会返回文本信息</p>';
 		echo '</td></tr>';
 
@@ -659,38 +698,39 @@ STR;
 	//组装menu菜单
 	public function weixin_robot_ab_menu(){
 		if($data = $this->db->weixin_get_menu_p_data()){
-			$string = '{"button":[';
+			$menu = array();
 			foreach($data as $k=>$v){
-				if($data2 = $this->db->weixin_get_menu_p_data_id($v['id'])){
-					$string .= '{';
-					$string .= '"name":"'.$v['menu_name'].'",';
-					$string .= '"sub_button":[';
+				if($data2 = $this->db->weixin_get_menu_p_data_id($v['id'])){			
+					$list['name'] = $v['menu_name'];
 					foreach($data2 as $k1=>$v2){
-						$string .= '{';
-						$string .= '"type":"'.$v2['menu_type'].'",';
-						$string .= '"name":"'.$v2['menu_name'].'",';
+						$list2['type'] = $v2['menu_type'];
+						$list2['name'] = $v2['menu_name'];
 						if('view' == $v2['menu_type']){
-							$string .= '"url":"'.$v2['menu_callback'].'"';
+							$list2['url'] = $v2['menu_callback'];
 						}else{
-							$string .= '"key":"'.$v2['menu_key'].'"';
+							$list2['key'] = $v2['menu_key'];
 						}
-						$string .= '},';
+						$list['sub_button'][] = $list2;
+						$list2 = array();
 					}
-					$string .= ']},';
+					
+					$menu[] = $list;
+					$list = array();
 				}else{
-					$string .= '{';
-					$string .= '"type":"'.$v['menu_type'].'",';
-					$string .= '"name":"'.$v['menu_name'].'",';
+					$list['type'] = $v['menu_type'];
+					$list['name'] = $v['menu_name'];
+
 					if('view' == $v['menu_type']){
-						$string .= '"view":"'.$v['menu_callback'].'"';
+						$list['url'] = $v['menu_callback'];
 					}else{
-						$string .= '"key":"'.$v['menu_key'].'"';
+						$list['key'] = $v['menu_key'];
 					}
-					$string .= '},';
+					$menu[] = $list;
+					$list = array();
 				}
 			}
-			$string .= ']}';
-			return $string;
+			$M['button'] = $menu;
+			return $this->to_json($M);
 		}
 		return false;
 	}
@@ -700,15 +740,30 @@ STR;
 		return 'MENU_'.time();
 	}
 
-	public function weixin_robot_menu_setting_page(){
+	public function weixin_robot_menu_setting_ajax(){
+		switch($_POST['method']){
+			case 'update':$res = $this->weixin_robot_menu_setting_ajax_update();break;
+			default: $res = 'fail';break;
+		};
+		return $res;
+	}
+
+	public function weixin_robot_menu_setting_ajax_update(){
+		$id = $_POST['id'];
+		$type = $_POST['type'];
+		$name = $_POST['name'];
+		$value = strip_tags($_POST['value']);
+		$res = $this->db->update_menu($id, $name, $type, $value);
+		if($res){
+			return 'ok';
+		}else{
+			return 'fail';
+		}
+	}
+
+	public function weixin_robot_menu_setting(){
 		//自定义菜单设置
 		$opts = $this->options;
-		if((empty($opts['ai'])) || (empty($opts['as']))){
-			$this->notices('填写服务号设置再使用!!!');
-			return;
-		}
-		$api = $this->weixin_robot_menu_api($opts['ai'], $opts['as']);
-
 		//判断
 		if(isset($_POST['submit_menu'])){
 			switch($_POST['submit_menu']){
@@ -734,7 +789,9 @@ STR;
 					}
 				break;
 			case '删除菜单':
-				if($data = $api->menuDel()){
+				$data = $this->menuDel();
+				$_data = json_decode($data, true);
+				if('ok' == $_data['errmsg']){
 					$this->notices('删除成功!!!');
 				}else{
 					$this->notices('删除失败!!!');
@@ -742,32 +799,33 @@ STR;
 				break;
 			case '同步到微信':
 				$json = $this->weixin_robot_ab_menu();
+				//var_dump($json);
 				if($json){
-					$data = $api->menuSet($json);
-					if($data){
+					$data = $this->menuSet($json);
+					$_data = json_decode($data, true);
+					if('ok' == $_data['errmsg']){
 						$this->notices('同步成功!!!');
 					}else{
-						$this->notices('同步失败!!!');
+						$this->notices($data);
 					}
 				}
 				break;
 			case '删除':
-				if(isset($_POST['id']))
+				if(isset($_POST['id'])){
 					if($data = $this->db->delete_menu_id($_POST['id'])){
 						$this->notices('ok!!!');
 					}else{
 						$this->notices('fail!!!');
 					}
+				}
 				break;
 			case '编辑':break;
 			}
 		}
-
-		echo '<hr />';
 		////////////////////////////////////////////////////////////////////////下面设置菜单
 		echo '<div class="metabox-holder">';
 		echo '<div class="postbox">';
-		echo '<h3>微信机器人自定义菜单设置</h3>';
+		echo '<h3>微信菜单设置</h3>';
 		echo '<table class="form-table" style="width:700px;border:2px;border-color:#21759b;">';
 
 		$trTpl = "<tr class='wp_weixin_robot_table_head_tr'>
@@ -790,7 +848,8 @@ STR;
 				<td style='text-align:center;' scope='col'>{$v['menu_callback']}</td>
 				<td style='width:100px;text-align:center;' scope='col'>";
 				$trTpl .= '<input type="hidden" name="id" value="'.$v['id'].'" />';
-				$trTpl .= '<input name="submit_menu" type="submit" value="删除" />';
+				$trTpl .= '<input class="button" name="submit_menu" type="submit" value="删除" />';
+				$trTpl .= '|<span class="weixin_robot_mv button wobble-to-top-right">修改</span>';
 				$trTpl .= "</td></tr>";
 				echo '<form  method="POST">';
 				echo $trTpl;
@@ -804,7 +863,8 @@ STR;
 						<td style='text-align:center;' scope='col'>{$v['menu_callback']}</td>
 						<td style='width:100px;text-align:center;' scope='col'>";
 						$trTpl .= '<input type="hidden" name="id" value="'.$v['id'].'" />';
-						$trTpl .= '<input name="submit_menu" type="submit" value="删除" />';
+						$trTpl .= '<input class="button" name="submit_menu" type="submit" value="删除" />';
+						$trTpl .= '|<span class="weixin_robot_mv button wobble-to-top-right">修改</span>';
 						$trTpl .= "</td></tr>";
 
 						echo '<form  method="POST">';
@@ -815,7 +875,7 @@ STR;
 			}
 		}else{
 			echo '<tr>';
-			echo "<td class='wp_weixin_robot_table_head_td' style='color:#21759b;width:100px' scope='col' colspan='6'>没有设置相应菜单</td>";
+			echo "<td class='wp_weixin_robot_table_head_td' style='color:#21759b;width:100px;text-align:center;' scope='col' colspan='6'>没有设置相应菜单</td>";
 			echo '</tr>';
 		}
 		echo '</table>';
@@ -831,7 +891,7 @@ STR;
 		//事件选择
 		echo '<tr  valign="top"><th scope="row">事件类型选择</th>';
 		echo '<td>';
-		echo '<select name="weixin_robot_menu[type]" id="method" />';
+		echo '<select name="weixin_robot_menu[type]" id="method">';
 		echo '<option value="click" selected="selected">点击</option>';
 		echo '<option value="view" >URL</option>';
 		echo '</select><p></p>';
@@ -841,7 +901,8 @@ STR;
 		echo '<tr valign="top"><th scope="row">key/url</th>';
 		echo '<td><input type="text" name="weixin_robot_menu[value]" value="" size="35"></input><br />';
 		echo '<p>如果选择"URL"选项,应该填写网址: http://midoks.cachecha.com/</p>';
-		echo '<p>如果选择"点击"选项,可以是使用0,today,n5, h5, r5, ?等内置命令!!</p>';
+		echo '<p>如果选择"点击"选项,可以是使用@(分类信息),#(标签信息),today(今日发布),n(1-10)最新信息, h(1-10)热门信息, r(1-10)随机信息, ?(帮助信息)等内置命令!!</p>';
+		echo '<p style="color:red">如果回复内容在关键字设置了, 就会返回关键字的回复信息!</p>';
 		echo '<p>不满足上面的话,则会返回文本信息</p>';
 		echo '</td></tr>';
 
@@ -862,24 +923,16 @@ STR;
 		}else{
 			echo '<option value="false" selected="selected">无顶级菜单,请先创建</option>';
 		}	
-		echo '</select><p></p>';
-		echo '<td></tr>';
-
-		echo '</table>';
+		echo '</select><td></tr></table>';
 		echo '<p class="submit">';
 		echo '<input name="submit_menu" type="submit" class="button-primary" value="提交菜单" />';
 		echo '<input style="margin-left:10px" name="submit_menu" type="submit" class="button-primary" value="删除菜单" />';
 		echo '<input style="margin-left:10px" name="submit_menu" type="submit" class="button-primary" value="同步到微信" />';
-		echo '</p>';
-		echo '</form>';
-		echo '</div>';
-		echo '</div>';
-
-
-		echo '<div class="clear"></div>';
+		echo '</p></form></div></div>';
 	}
 
-	public function weixin_robot_count(){
+
+	public function weixin_robot_count_ajax(){
 		$db = $this->db;
 		$text = $db->weixin_get_msgtype_count('text');
 		$voice = $db->weixin_get_msgtype_count('voice');
@@ -889,100 +942,77 @@ STR;
 		$image = $db->weixin_get_msgtype_count('image');
 		$location = $db->weixin_get_msgtype_count('location');
 
+		$list['text'] = $text;
+		$list['voice'] = $voice;
+		$list['video'] = $video;
+		$list['link'] = $link;
+		$list['event'] = $event;
+		$list['image'] = $image;
+		$list['location'] = $location;
+		return json_encode($list);
+	}
+
+	public function weixin_robot_count(){
 		//使用项目ichatjs | link:www.ichatjs.com
-		echo '<div class="metabox-holder"><div class="postbox">
-			 <h3>微信通信记录统计分析</h3>
-			 <div id="canvasDiv1"></div>
-			 </div></div>';
-
-		//走势图
-
-		
+		echo '<div class="metabox-holder"><div class="postbox"><h3>微信通信记录统计分析</h3><div id="canvasDiv1"></div></div></div>';
+	}
 
 
-		//就下面为js渲染数据和图形(总统计)
-		echo "<script>
-		$(function(){
-			var data = [
-			    {name : '文本信息',value : {$text}, color:'#fedd74'},
-				{name : '音频消息',value : {$voice}, color:'#82d8ef'},
-			    {name : '视频消息',value : {$video}, color:'#f76864'},
-				{name : '链接消息',value : {$link}, color:'#80bd91'},
-				{name : '事件消息',value : {$event}, color:'#80ee91'},
-				{name : '地理消息',value : {$location}, color:'#70bc91'},
-			    {name : '图片消息',value : {$image}, color:'#fd9fc1'}];
 
-	    	
-			var chart = new iChart.Pie3D({
-				render : 'canvasDiv1',
-				data: data,
-				title : {
-					text : '微信通信记录统计',
-					color : '#3e576f'
-				},
-				footnote : {
-					text : '感谢www.ichartjs.com提供',
-					color : '#486c8f',
-					fontsize : 11,
-					padding : '0 38'
-				},
-				bound_event:null,
-				sub_option : {
-					label : {
-						background_color:null,
-						sign:false,//设置禁用label的小图标
-						padding:'0 4',
-						border:{
-							enable:false,
-							color:'#be5985'
-						},
-						fontsize:11,
-						fontweight:600,
-						color : '#be5985'
-					},
-					border : {
-						width : 2,
-						color : '#ffffff'
-					}
-				},
-				shadow : true,
-				shadow_blur : 6,
-				shadow_color : '#aaaaaa',
-				shadow_offsetx : 0,
-				shadow_offsety : 0,
-				background_color:'#fefefe',
-				yHeight:20,//饼图厚度
-				offsetx:60,//设置向x轴负方向偏移位置60px
-				offset_angle:0,//逆时针偏移120度
-				mutex : true,//只允许一个扇形弹出
-				showpercent:true,
-				decimalsnum:2,
-				width : 800,
-				height : 400,
-				radius:150
-			});
-			chart.plugin(new iChart.Custom({
-					drawFn:function(){
-						//计算位置
-						var y = chart.get('originy'),
-							w = chart.get('width');
-						chart.target.textAlign('start')
-						.textBaseline('middle')
-						.textFont('600 16px Verdana')
-						.fillText('微信统计各类型比',60,y-40,false,'#3e576f',false,20);
-					}
-			}));
+	/**
+	 *	@func 微信扩展功能
+	 */
+	public function weixin_robot_extends(){
+
+		if(isset($_GET['file']) && isset($_GET['type'])){
+			$ext_file = $_GET['file'];
+			$ext_type = $_GET['type'];
+			if('del'==$ext_type){
+				$this->plugins->uninstall($ext_file);
+				$res = $this->db->delete_extends_name($ext_file);
+			}else if(in_array($ext_type, array('text', 'location', 'image', 'link', 'video','voice', 'menu'))){
+				$this->plugins->install($ext_file);
+				$this->db->insert_extends($ext_file , $ext_type, '1');
+			}
+		}
+
+		$data = $this->db->select_extends();
+		//echo '<pre>';var_dump($data);echo '</pre>';
+
+		$list = $this->plugins->get_all_plugins();
+		echo '<h3>微信机器人扩展</h3>';
+
+		$url = $_SERVER['REQUEST_URI'];
+		$r_url = str_replace(strstr($url, '&'), '', $url);
+		$thisPageUrl = 'http://'.$_SERVER['HTTP_HOST'].$r_url;
+		//var_dump($thisPageUrl);
+
+		echo '<table class="wp-list-table widefat fixed">';
+		echo '<tr><td>扩展名</td><td>扩展类型</td><td>是否启动</td></tr>';
+		foreach($list['abspath'] as $k=>$v){
+			echo '<tr>';
 			
-			chart.draw();
-		});		
-		</script>";
+			echo "<td>{$list['path'][$k]}</td>";
+			echo "<td>{$list['type'][$k]}</td>";
+			echo "<td>";
+			if($this->db->select_extends_name($list['path'][$k])){
+				echo '<a href="'.$thisPageUrl.'&file='.$list['path'][$k].'&type=del'.'">已启用</a>';
+			}else{
+				echo '<a href="'.$thisPageUrl.'&file='.$list['path'][$k].'&type='.$list['type'][$k].'">未启用</a>';
+			}
+				
+			echo "</td>";
+			echo '</tr>';
+		}
+		echo '</table>';
+
+		//echo '<pre>';var_dump($_SERVER);echo '</pre>';
 	}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-	///		上为统计功能显示图
+	///		上为扩展管理
 	///  	下为今日文章推送功能
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	
 	public function weixin_robot_push_today_ajax(){
 		
 		//ajax请求数据
@@ -990,62 +1020,14 @@ STR;
 			$ai = $_POST['ai'];
 			$as = $_POST['as'];
 			$next_id = empty($_POST['next_id']) ?'':$_POST['next_id'];
-			include(WEIXIN_ROOT_LIB.'weixin_robot_user.php');
-			$obj = new weixin_robot_user($ai, $as);
-
-			echo $obj->getUserList($next_id);exit;
+			echo $this->getUserList($next_id);exit;
 		}
 
-		if('pushpost' == $_POST['method']){
-			$id = $_POST['id'];
-			$userid = $_POST['userid'];
-			$ai = $_POST['ai'];
-			$as = $_POST['as'];	
-
-			include(WEIXIN_ROOT_API.'weixin_robot_api_wordpress_options.php');
-			$db = new weixin_robot_api_wordpress_options($this);
-
-			if(empty($id)){
-				$data = $db->today();
-			}else{
-				$data = $db->Qid($id);
-			}
-			if($data){
-				foreach($data as $k=>$v){
-					$data[$k]['title'] = $v['title'];
-					$data[$k]['description'] = $v['desc'];
-					$data[$k]['picurl'] = $v['pic'];
-					$data[$k]['url'] = $v['link'];
-				}
-				include(WEIXIN_ROOT_LIB.'weixin_robot_push.php');
-				$push = new weixin_robot_push($ai, $as);
-				$info = $push->toPicText($userid, $data);//测试
-				$res = json_decode($info, true);
-				if('ok'==$res['errmsg']){
-					echo 'true';
-				}else{
-					echo 'false';
-				}
-			} 
-		}
 	}
-
-
-	public function weixin_robot_push_today(){
+	
+	public function weixin_robot_push(){
 		$data = $this->options['weixin_robot_push_today'];
 		$data = json_decode($data, true);
-		$ai = $this->options['ai'];
-		$as = $this->options['as'];
-
-		if(empty($ai) || empty($as)){
-			$this->notices('请完整设置服务号信息!!!');
-			exit;
-		}
-
-		if(empty($data['id'])){
-			$this->notices('你今天没有写新文章!!!');
-			exit;
-		}
 
 
 		//通过div,传输数据
@@ -1058,5 +1040,25 @@ STR;
 		echo "<div id='stop' class='button-primary'>停止</div>";
 		
 	}
+
+
+	/**
+	 *	微信SDK高级操作
+	 */
+	public function weixin_robot_menu_testing(){
+		var_dump($this->getToken());
+		//$data = $this->pushMsgText('of6wBuP54x929znVYV9ta4iOShJQ', 'nihao');
+		//$data = $this->upload('image', WEIXIN_ROOT.'image/80_80/1.jpg');
+		//$data = json_decode($data, true);
+		//$data = $this->pushMsgImageAdv('of6wBuP54x929znVYV9ta4iOShJQ', WEIXIN_ROOT.'lib/voice/1.mp3');
+		//$data = $this->pushMsgImageAdv('of6wBuP54x929znVYV9ta4iOShJQ', "http://bcs.duapp.com/midoks-wordpress/midoks/img/alipay.png");
+		//$data = $this->uploadUrl('image',"http://bcs.duapp.com/midoks-wordpress/midoks/img/alipay.png");
+		$data = $this->upload('image',WEIXIN_ROOT."author.jpg");
+		echo '<pre>';
+		var_dump($data);
+		echo '</pre>';
+	}
+
+
 }
 ?>

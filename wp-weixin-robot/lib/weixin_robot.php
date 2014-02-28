@@ -12,6 +12,7 @@ class weixin_robot{
 	//@func 机器人功能验证和返回信息
 	public function valid(){
 		if(isset($_GET['debug'])){
+			header('Content-type: text/html;charset=utf-8');
 			//$this->kw = strtolower(trim($_GET['kw']));
 			//$this->checkSignature();
 			$this->responseMsg();

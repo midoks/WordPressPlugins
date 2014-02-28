@@ -6,14 +6,10 @@ class weixin_robot_event_user{
 	
 	public $obj = null;
 
-	public $callback = array(
-		'0', 'n5', 'h5', 'r5', 'today', '?',
-	);
+	public $callback = array('$', '#', '@','today','n', 'h', 'r', '?');
 
 	//预留进行二次开发
-	public $self_callback = array(
-		
-	);//你自定义方法
+	public $self_callback = array();//你自定义方法
 
 	public function __construct($obj){
 		$this->obj = $obj;
@@ -24,22 +20,32 @@ class weixin_robot_event_user{
 		if($data){
 			foreach($data as $k=>$v){
 				if($key == $v['menu_key']){
-					return $this->choose($v['menu_callback']);
+					return $this->choose($v['menu_callback'], $v['menu_name']);
 				}
 			}
 		}
 		return  $this->obj->helper('key:'.$key."\n".'用户自定菜单响应未定义?');
 	}	
 
-	public function choose($case){
-		if(in_array($case, $this->callback)){//预定义
-			include(WEIXIN_ROOT_LIB.'text/weixin_robot_textreplay.php');
+	public function choose($case, $name){
+		//插件接口调用
+		if($wp_plugins = $this->obj->plugins->dealwith('menu', $name)){
+			return $wp_plugins;
+		}
+
+		include(WEIXIN_ROOT_LIB.'text/weixin_robot_textreplay.php');
+		if(in_array($case, $this->callback) || in_array(substr($case,0,1), $this->callback)){//预定义
 			$text = new weixin_robot_textreplay($this->obj, $case);
 			return $text->replay();
 		}else if(in_array($case, $this->self_callback)){//预留接口
 			return $this->self_choose($case);
 		}else{
-			return $this->obj->toMsgText($case);
+			$text = new weixin_robot_textreplay($this->obj, $case);
+			$data = $text->replay();
+			if(empty($data)){
+				return $this->obj->toMsgText($case);
+			}
+			return $data;
 		}
 	
 	}
