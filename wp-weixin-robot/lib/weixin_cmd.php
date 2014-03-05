@@ -107,9 +107,9 @@ class weixin_cmd extends weixin_core{
 		$picurl = isset($info['PicUrl']) ? $info['PicUrl']: '';
 
 		//地理位置上传
-		$location_x = isset($info['Location_X']) ? $info['Location_X']: '';
-		$location_y = isset($info['Location_Y']) ? $info['Location_Y']: '';
-		$scale = isset($info['Scale']) ? $info['Scale']: '';
+		$location_x = isset($info['Location_X']) ? $info['Location_X']: '0.00';
+		$location_y = isset($info['Location_Y']) ? $info['Location_Y']: '0.00';
+		$scale = isset($info['Scale']) ? $info['Scale']: '0.00';
 		$label = isset($info['Label']) ? $info['Label']: '';
 
 		//link分享
