@@ -27,6 +27,10 @@ class wp_weixin_plugins{
 	public function dealwith($func, $args){
 		$res = '';
 		switch($func){
+			//所有
+			case 'all'		:	$res = $this->p_all($args);break;
+			//订阅
+			case 'subscribe':	$res = $this->p_subscribe('');break;
 			//文本消息	
 			case 'text'		:	$res = $this->p_text($args);break;
 			//图片消息
@@ -48,6 +52,22 @@ class wp_weixin_plugins{
 			return false;
 		}
 		return $res;
+	}
+
+	private function p_all($args){
+		if(empty($args)){return false;}
+		if($data = $this->plugins_start('all', $args)){
+			return $data;
+		}
+		return false;
+	}
+
+	//订阅
+	private function p_subscribe($args){
+		if($data = $this->plugins_start('subscribe', $args)){
+			return $data;
+		}
+		return false;
 	}
 
 	/**
@@ -195,6 +215,9 @@ class wp_weixin_plugins{
 		include($abspath);
 		$tt = explode('.', $fn);
 		$cn = $tt[0];
+		if(!class_exists($cn)){
+			$this->obj->notices('此文件下,类名有错!!!');exit;
+		}
 		$obj = new $cn($this);
 		if(method_exists($obj, 'install')){
 			$obj->install();

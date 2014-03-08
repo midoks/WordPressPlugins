@@ -91,20 +91,20 @@ class weixin_robot_textreplay{
 
 	//用户自定义关键字回复
 	public function user_keyword_cmd($kw){
-		$data = $this->obj->db->weixin_get_relpy_data();
+		$data = $this->obj->db->weixin_get_relpy_data($kw);
 		if($data){
 			$arr = array();
 			foreach($data as $k=>$v){
 				if('1' == $v['status']){
 					if($kw == $v['keyword'] && 'text' == $v['type']){
-						if(in_array($v['relpy'], $this->list_cmd) || in_array(substr($kw,0,1), $this->list_cmd)){
+						if(in_array($v['relpy'], $this->list_cmd) || in_array(substr($v['relpy'], 0, 1), $this->list_cmd)){
 							return $this->wordpress_cmd($v['relpy']);
 						}else{
 							return $this->obj->toMsgText($v['relpy']);
 						}
 					}else if($kw == $v['keyword'] && 'id' == $v['type']){
-						if(in_array($v['relpy'], $this->list_cmd) || in_array(substr($kw,0,1), $this->list_cmd)){//这是为兼容错误
-							return $this->wordpress_cmd($v['relpy']);
+						if(in_array($v['relpy'], $this->list_cmd) || in_array(substr($v['relpy'], 0, 1), $this->list_cmd)){
+							return $this->wordpress_cmd($v['relpy']);//这是为兼容错误
 						}else{
 							if(count($idsc = explode(',', $v['relpy']))>1){
 								$data = $this->obj->wp_db->Qids($idsc);
@@ -113,8 +113,6 @@ class weixin_robot_textreplay{
 							}
 							return $data;
 						}
-					}else{
-						return false;
 					}
 				}
 			}
@@ -134,18 +132,22 @@ class weixin_robot_textreplay{
 		$res = '';
 
 
+		/* 此,强制转换
 		$int = intval($suffix);
 		if($int<1){
 			$int = 5;
 		}else if($int >10){
 			$int = 10;
 		}
+		*/
 
 		switch($prefix){
-			case 'n': $res = $wp->news($int);break;
-			case 'h': $res = $wp->hot($int);break;
-			case 'r': $res = $wp->rand($int);break;
+			case 'n': $res = $wp->news($suffix);break;
+			case 'h': $res = $wp->hot($suffix);break;
+			case 'r': $res = $wp->rand($suffix);break;
+			//case '#': $res = $wp->get_tag();break;
 			case '#': $res = $wp->get_tag_list($suffix);break;
+			case '@': $res = $wp->get_category_data($suffix);break;
 			default: break;
 		}
 
@@ -154,12 +156,10 @@ class weixin_robot_textreplay{
 		}
 
 		switch($kw){
-			case '@'		: $res = $wp->get_category_list();break;	
 			case 'today'	: $res = $wp->today();break;
 			case 'p?'		: $res = $wp->total();break;
 			default			: $res = $wp->pageView($kw);break;
 		}
-
 		return $res;
 	}
 
@@ -170,8 +170,8 @@ class weixin_robot_textreplay{
 	* @return string 返回转换后的字符串
 	*/
 	public function convert($str, $type = 'TOSBC'){
-		$dbc = array('！', '？', '。');
-		$sbc = array('!', '?', '.');
+		$dbc = array('！','？','。','＠','＃','＄');
+		$sbc = array('!', '?', '.', '@', '#', '$');
 		if($type == 'TODBC'){
 			return str_replace($sbc, $dbc, $str); //半角到全角
 		}elseif($type == 'TOSBC'){

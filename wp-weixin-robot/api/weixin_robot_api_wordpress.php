@@ -152,8 +152,22 @@ class weixin_robot_api_wordpress{
 		return $this->obj->toMsgTextPic($info);//图文
 	}
 
+	//最新最热随机判断
+	public function nrh_Judge($suffix){
+		if(!is_numeric($suffix)){
+			return false;
+		}
+
+		if($suffix >=1 && $suffix <=10){
+			return true;
+		}
+	}
+
 	public function news($n = 5){
-		return $this->new_art($n);
+		if($this->nrh_Judge($n)){
+			return $this->new_art($n);
+		}
+		return false;
 	}
 
 	public function new_art($int){
@@ -184,7 +198,10 @@ class weixin_robot_api_wordpress{
 	 *	@ret  xml
 	 */
 	public function hot($n=5){
-		return $this->hot_art($n);
+		if($this->nrh_Judge($n)){
+			return $this->hot_art($n);
+		}
+		return false;
 	}
 
 	public function hot_art($int){
@@ -219,7 +236,10 @@ class weixin_robot_api_wordpress{
 	 * @func 随机5篇文章信息
 	 */
 	public function rand($n=5){
-		return $this->rand_art($n);	
+		if($this->nrh_Judge($n)){
+			return $this->rand_art($n);
+		}
+		return false;
 	}
 
 	public function rand_art($int){
@@ -311,7 +331,8 @@ class weixin_robot_api_wordpress{
 	}
 
 	//@param array $id 
-	/*public function Qids($id){
+	/*
+	public function Qids($id){
 		$wp = new WP_query(array(
 				'post__in'=>$id,
 				//'showposts' => 10,			//调用的数量
@@ -338,13 +359,132 @@ class weixin_robot_api_wordpress{
 			return false;
 		}
 		return $this->obj->toMsgTextPic($info);//图文
-	}*/
+	}
+	*/
+
+	/**
+	 *	获取分类,并实现翻页功能
+	 *	@param string $suffix 后面的内容(分类名!页数)
+	 *	@param string $sep 分割符
+	 *	@param int $num 每页显示的数量
+	 */
+	public function get_category_data($suffix, $num = 5, $sep = '!'){
+		if(empty($suffix)){
+			return $this->get_category_list();
+		}else{
+			
+			//拆分符号
+			$epd = explode($sep, $suffix);
+			if(count($epd) >=2 ){
+				$name = $epd[0];
+				$page = $epd[1];
+				$cat_id = get_cat_id($name);
+				if('?' == $page){
+					$pages = $this->get_category_total($cat_id, $num);
+					return $this->obj->toMsgText('此类下,共有'.$pages.'页文章!!!('.$num.'篇一页)');
+				}
+				$page = intval($page);
+				if($page<1) $page=1;
+			}else{
+				
+				$name = $epd[0];
+				$page = 1;
+				$cat_id = get_cat_id($name);
+			}
+
+			//获取分类ID
+			$pages = $this->get_category_total($cat_id, $num);
+			if($cat_id <=0){
+				return $this->obj->toMsgText('无此分类!!!');
+			}
+
+			if($page > $pages){
+				return $this->obj->toMsgText('你输入的页数太大!!!');
+			}
+
+			return $this->get_category_page($cat_id, $page, $num, $name);
+		}
+	}
+	
+	/**
+	 * 获取某分类下的总页数
+	 * @param int $cat_id 分类ID
+	 * @param int $num 每页的数量
+	 */
+	public function get_category_total($cat_id, $num){
+		$wp = new WP_query(array(
+				'post_status' => 'publish',		//选择公开的文章
+				//'post_not_in' => array(),		//排除当前文章
+				//'ignore_sticky_posts'=> 1,	//排除顶置文章
+				//'orderby' => 'comment_count', //依据评论排序
+				'showposts' => $page_num,		//调用的数量
+				'cat'		=> $cat_id,			//分类ID
+				'order' => 'DESC',				//ASC升序 DESC降序
+			));
+		return $wp->max_num_pages;
+	}
+
+	/**
+	 *	获取分类的信息
+	 *	@param string $cat_id 分类ID
+	 *	@param int $paged 页数
+	 *	@param int $page_num 每页数量(default:5)
+	 *	@param string $cat_name 分类名
+	 */
+	public function get_category_page($cat_id, $paged, $page_num = 5, $cat_name=''){
+		$wp = new WP_query(array(
+				'post_status' => 'publish',		//选择公开的文章
+				//'post_not_in' => array(),		//排除当前文章
+				//'ignore_sticky_posts'=> 1,	//排除顶置文章
+				//'orderby' => 'comment_count', //依据评论排序
+				'showposts' => $page_num,		//调用的数量
+				'cat'		=> $cat_id,			//分类ID
+				'paged'		=> $paged,			//页数
+				'order' => 'DESC',				//ASC升序 DESC降序
+			));
+
+		$info = array();
+		//$i = 0;
+
+		$a['title'] = '回复@'.$cat_name.'!'.($paged+1).',进入下一页';
+		$a['desc'] = '回复@'.$cat_name.'!'.($paged+1).',进入下一页';
+		$a['pic'] = '';
+		$a['link'] = '';
+		$info[] = $a;
+
+		while($wp->have_posts()){$wp->the_post();
+			//++$i;
+			//if($i==1){
+			//	$a['title'] = get_the_title();
+			//	$a['desc'] = $this->head_one_line(get_the_content());
+			//	$a['pic'] = $this->get_opt_pic_big(get_the_content());
+			//	$a['link'] = get_permalink();
+			//}else{
+			$a['title'] = get_the_title();
+			$a['desc'] = get_the_title();
+			$a['pic'] = $this->get_opt_pic_small(get_the_content());
+			$a['link'] = get_permalink();
+			//}
+			$info[] = $a;
+		}
+
+		$a['title'] = '回复@'.$cat_name.'!'.($paged+1).',进入下一页';
+		$a['desc'] = '回复@'.$cat_name.'!'.($paged+1).',进入下一页';
+		$a['pic'] = '';
+		$a['link'] = '';
+		$info[] = $a;
+		return $this->obj->toMsgTextPic($info);//图文
+	}
+
 
 	//获取分类列表
 	public function get_category_list(){
 		global $wpdb;
 		$sql = "SELECT t.term_id, t.name FROM {$wpdb->terms} as t,
 			{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='category'";
+
+		//$sql = "SELECT t.term_id, t.name, tt.description FROM {$wpdb->terms} as t,
+		//	{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='category'";
 		$res = $wpdb->get_results($sql);
 
 		$posts_page = ( 'page' == get_option( 'show_on_front' ) && get_option( 'page_for_posts' ) ) 
@@ -352,7 +492,6 @@ class weixin_robot_api_wordpress{
 		$posts_page = esc_url($posts_page);
 
 		$info = array();
-		$i = 0;
 
 		$a['title'] = '欢迎光临,点击喜欢的栏目';
 		$a['desc'] =  '介绍';
@@ -361,57 +500,31 @@ class weixin_robot_api_wordpress{
 
 		if($res){
 			foreach($res as $k=>$v){
-				++$i;
-				if($i==1){
-					$a['title'] = $v->name;
-					$a['desc'] =  $v->name;
-					$a['link'] = "{$posts_page}?cat={$v->term_id}";
-				}else{
-					$a['title'] = $v->name;
-					$a['desc'] =  $v->name;
-					$a['link'] = "{$posts_page}?cat={$v->term_id}";
-				}
+				$a['title'] = $v->name;
+				//$a['title'] = $v->name.':'.$v->description;
+				$a['desc'] =  $v->description;
+				$a['link'] = "{$posts_page}?cat={$v->term_id}";
 				$info[] = $a;
 			}
 		}
 		if(empty($info)){
 			return false;
 		}
+		$a['title'] = '回复@分类名,进入此分类下';
+		$a['desc'] = '回复@分类名,进入此分类下';
+		$a['link'] = '';
+
+		$info[] = $a;
 		return $this->obj->toMsgTextPic($info);//图文
 	}
 
-
-	public function get_tag_list($page = 1){
-		$total = $this->get_tag_list_page_total();
-		$page_num = ceil($total/10);
-
-		if('?'==$page){
-			$info = '共有标签'.$total.'个(每页10个标签),共有'.$page_num.'页标签';
-			return $this->obj->toMsgText($info);
-		}
-
-		
-		if($page<1){
-			$page = 1;
-		}else if($page > $page_num){
-			$info = '超出了标签查询页,回复#?,查看多少页标签';
-			return $this->obj->toMsgText($info);
-		}
-		return $this->get_tag_list_page(($page-1)*10);
-	}
-
-	public function get_tag_list_page_total(){
+	/**
+	 * 获取所有标签
+	 */
+	public function get_tags(){
 		global $wpdb;
-		$sql = "SELECT count(t.term_id) as c FROM {$wpdb->terms} as t,
-			{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='post_tag' order by t.term_id";
-		$res = $wpdb->get_results($sql);
-		return $res[0]->c;
-	}
-
-	public function get_tag_list_page($pages = 0){
-		global $wpdb;
-		$sql = "SELECT t.term_id, t.name FROM {$wpdb->terms} as t,
-			{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='post_tag' order by t.term_id desc limit {$pages}, 10";
+		$sql = "SELECT t.term_id, t.name, t.slug FROM {$wpdb->terms} as t,
+			{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='post_tag' order by t.term_id desc";
 		$res = $wpdb->get_results($sql);
 		
 		$posts_page = ('page' == get_option( 'show_on_front' ) && get_option( 'page_for_posts' ) )
@@ -423,17 +536,78 @@ class weixin_robot_api_wordpress{
 			foreach($res as $k=>$v){
 				$a['title'] =  $v->name;
 				$a['desc'] =  $v->name;
-				$a['link'] = "{$posts_page}tag/{$v->name}";
+				$a['link'] = "{$posts_page}?tag={$v->slug}";
+				$a['pic'] = '';
 				$info[] = $a;
 			}
 		}
-		return $this->obj->toMsgTextPicList($info);
+		return $this->obj->toMsgTextAlink($info);
 	}
+
+	public function get_tag_list($page = 1){
+		$total = $this->get_tag_list_page_total();
+		$page_num = ceil($total/9);
+
+		if('?'==$page){
+			$info = '共有标签'.$total.'个(每页9个标签),共有'.$page_num.'页标签';
+			return $this->obj->toMsgText($info);
+		}
+		
+		if($page<1){
+			$page = 1;
+		}else if($page > $page_num){
+			$info = '超出了标签查询页,回复#?,查看多少页标签';
+			return $this->obj->toMsgText($info);
+		}
+		return $this->get_tag_list_page(($page-1)*9);
+	}
+
+	//获取tag总数
+	public function get_tag_list_page_total(){
+		global $wpdb;
+		$sql = "SELECT count(t.term_id) as c FROM {$wpdb->terms} as t,
+			{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='post_tag' order by t.term_id";
+		$res = $wpdb->get_results($sql);
+		return $res[0]->c;
+	}
+
+	//获取tag页数数据
+	public function get_tag_list_page($pages = 0){
+		global $wpdb;
+
+		$sql = "SELECT t.term_id, t.name, t.slug FROM {$wpdb->terms} as t,
+			{$wpdb->term_taxonomy} as tt WHERE t.term_id = tt.term_id and tt.taxonomy='post_tag' order by t.term_id desc limit {$pages}, 9";
+		$res = $wpdb->get_results($sql);
+		
+		$posts_page = ('page' == get_option( 'show_on_front' ) && get_option( 'page_for_posts' ) )
+			? get_permalink( get_option( 'page_for_posts' ) ) : home_url( '/' );
+		$posts_page = esc_url($posts_page);
+
+		$info = array();
+		if($res){
+			foreach($res as $k=>$v){
+				$a['title'] =  $v->name;
+				$a['desc'] =  $v->name;
+				$a['link'] = "{$posts_page}?tag={$v->slug}";
+				$a['pic'] = '';
+				$info[] = $a;
+				$a = array();
+			}
+		}
+		$next = $pages/9 + 2;
+		$a['title'] = "回复#".$next.',进入下一页';
+		$a['desc'] =  $a['title'];
+		$a['link'] = '#';
+		$a['pic'] = '';
+		$info[] = $a;
+		return $this->obj->toMsgTextPic($info);
+	}
+
 
 	//@func 总文章数
 	public function total(){
-		$arg['posts_per_page'] = -1;
-		$query = new WP_Query($arg);
+		$args['posts_per_page'] = -1;
+		$query = new WP_Query($args);
 		$total = $query->post_count;
 		$page = ceil($total/5);
 		$text = '共有:'.$total.'篇文章'."\n";
@@ -441,7 +615,10 @@ class weixin_robot_api_wordpress{
 		return $this->obj->toMsgText($text);
 	}
 
-	//@func 页面浏览
+	/**
+	 * @func 页面浏览
+	 * @param stiing $kw 翻页关键字内容
+	 */
 	public function pageView($kw){
 		//先判断是否是关键字查询
 		if($kq = $this->keyQuery($kw)){
@@ -456,10 +633,9 @@ class weixin_robot_api_wordpress{
 		$word_suffix = substr($kw, 1);
 		//var_dump(is_numeric($word_suffix));
 		if(!is_numeric($word_suffix)){
-			//var_dump($word_prefix);
-			return false;
+			$word_suffix = 1;
+			//return false;
 		}
-		//var_dump($word_prefix);
 
 		$arg['posts_per_page'] = -1;
 		$query = new WP_Query(array('posts_per_page'=>-1));
@@ -575,7 +751,6 @@ class weixin_robot_api_wordpress{
 	public function keySoso($k, $sign){
 		global $wpdb;
 		$limit = '';
-		//limit
 		//判断$sign
 		if(empty($sign)){
 			$limit = 'limit 0, 5';

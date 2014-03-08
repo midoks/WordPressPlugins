@@ -443,10 +443,11 @@ EOT;
 			<td class='wp_weixin_robot_table_head_td' style='width:180px;color:#21759b;' scope='col'>%s</td>
 			<td class='wp_weixin_robot_table_head_td' style='width:50px;color:#21759b;' scope='col'>%s</td>
 			<td class='wp_weixin_robot_table_head_td' style='color:#21759b;' scope='col'>%s</td>
-			<td class='wp_weixin_robot_table_head_td' style='color:#21759b;width:160px' scope='col'>%s</td>
+			<td class='wp_weixin_robot_table_head_td' style='color:#21759b;width:130px' scope='col'>%s</td>
+			<td class='wp_weixin_robot_table_head_td' style='color:#21759b;width:100px' scope='col'>%s</td>
 			<td class='wp_weixin_robot_table_head_td' style='color:#21759b;width:100px' scope='col'>%s</td></tr>";
 		$tableHeadTpl = sprintf($trTpl, '序号ID', '开发者ID', '用户ID',
-			'消息类型', '消息内容', '消息时间', '回复');
+			'消息类型', '消息内容', '消息时间', '回复', '响应时间');
 
 
 		$tableTrTpl = "<tr onmousemove=\"weixin_robot_stat_on(this);\" onmouseout=\"weixin_robot_stat_out(this)\">
@@ -455,15 +456,16 @@ EOT;
 			<td style='text-align:center;width:180px;'>%s</td>
 			<td style='text-align:center;width:50px;'>%s</td>
 			<td style='text-align:center;'>%s</td>
-			<td style='text-align:center;width:160px'>%s</td>
-			<td style='text-align:center;width:100px'>%s</td></tr>";
+			<td style='text-align:center;width:130px'>%s</td>
+			<td style='text-align:center;width:100px'>%s</td>
+			<td title='超过5s,则代表失败!!!' style='text-align:center;width:100px'>%s</td></tr>";
 		$tableBodyTpl = '';
 		$data = $db->weixin_get_data($paged);
 
 		foreach($data as $k=>$v){
-				//var_dump($v);
+			//var_dump($v);
 			$tableHeadTpl .= sprintf($tableTrTpl,   $v['id'], $v['to'], $v['from'],
-				$this->type_replace($v['msgtype']), $v['content'], $v['createtime'], $v['response']);
+				$this->type_replace($v['msgtype']), $v['content'], $v['createtime'], $v['response'], $v['response_time']);
 		}
 
 		//echo($tableTpl);
@@ -735,6 +737,40 @@ STR;
 		return false;
 	}
 
+	//从微信服务更新到本地数据库中.
+	//click 类型要重新设置
+	public function weixin_robot_ab_menu_insert($option){
+		//echo json_encode($option);
+		$this->db->clear_menu();
+		foreach($option as $k=>$v){
+			//var_dump($v);
+			if(!empty($v['sub_button'])){
+				$this->db->insert_menu($v['name'], 'click', 'click', "父级菜单可不修改", '0');
+				$id = mysql_insert_id();
+				foreach($v['sub_button'] as $k2=>$v2){
+					if('view' == $v2['type']){
+						$this->db->insert_menu($v2['name'], $v2['type'], $v2['key'], $v2['url'], $id);
+					}else if('click' == $v2['type']){
+						$this->db->insert_menu($v2['name'], $v2['type'], $v2['key'], "此处要修改", $id);
+					}
+				}
+			}else{
+				if('view' == $v['type']){
+					$this->db->insert_menu($v['name'], $v['type'], 'view', $v['url'], '0');
+				}else if('click' == $v['type']){
+					$this->db->insert_menu($v['name'], $v['type'], $v['key'], '此处要修改', '0');
+				}
+				
+			}
+			$success[] = true;
+		}
+		foreach($success as $k){
+			if(!$k) return false;
+		}
+		//$this->db->insert_menu($menu_name, $menu_type, $menu_key, $menu_callback, $pid);
+		return true;
+	}
+
 	//随机key菜单值
 	public function weixin_robot_rand_menu(){
 		return 'MENU_'.time();
@@ -820,6 +856,18 @@ STR;
 				}
 				break;
 			case '编辑':break;
+			case '微信同步本地':
+				$data = $this->menuGet();
+				if($data){
+					$data = $data['menu']['button'];
+					$bool = $this->weixin_robot_ab_menu_insert($data);
+					if($bool){
+						$this->notices('同步本地成功!!!');
+					}else{
+						$this->notices('同步本地失败!!!');
+					}
+				}
+				break;
 			}
 		}
 		////////////////////////////////////////////////////////////////////////下面设置菜单
@@ -928,6 +976,7 @@ STR;
 		echo '<input name="submit_menu" type="submit" class="button-primary" value="提交菜单" />';
 		echo '<input style="margin-left:10px" name="submit_menu" type="submit" class="button-primary" value="删除菜单" />';
 		echo '<input style="margin-left:10px" name="submit_menu" type="submit" class="button-primary" value="同步到微信" />';
+		echo '<input style="margin-left:10px" name="submit_menu" type="submit" class="button-primary" value="微信同步本地" title="成功后,原来数据删除,失败,不变!" />';
 		echo '</p></form></div></div>';
 	}
 
@@ -970,7 +1019,7 @@ STR;
 			if('del'==$ext_type){
 				$this->plugins->uninstall($ext_file);
 				$res = $this->db->delete_extends_name($ext_file);
-			}else if(in_array($ext_type, array('text', 'location', 'image', 'link', 'video','voice', 'menu'))){
+			}else if(in_array($ext_type, array('all', 'subscribe', 'text', 'location', 'image', 'link', 'video','voice', 'menu'))){
 				$this->plugins->install($ext_file);
 				$this->db->insert_extends($ext_file , $ext_type, '1');
 			}

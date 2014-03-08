@@ -41,7 +41,8 @@ class weixin_robot_api_wordpress_dbs{
 			`recognition` varchar(255) not null comment '语音识别结果',
 			`mediaid` varchar(255) not null comment '媒体文件ID',
 			`thumbmediaid` varchar(255) not null comment '媒体缩略图ID',
-			`response` varchar(255) NOT NULL comment '响应信息', 
+			`response` varchar(255) NOT NULL comment '响应信息',
+		   	`response_time` double(10,6) not null comment '响应时间',
 			primary key(`id`)
 			)engine=MyISAM default character set utf8 comment='微信机器人插件' collate utf8_general_ci";
 		$this->linkID->query($sql);
@@ -49,8 +50,8 @@ class weixin_robot_api_wordpress_dbs{
 
 	//插件入数据
 	public function insert($from, $to, $msgid, $msgtype, $createtime, $content, $picurl, $location_x, $location_y,
-		$scale, $label, $title, $description, $url, $event,$eventkey,$format, $recognition, $mediaid,$thumbmediaid, $response){
-		$sql = "INSERT INTO `{$this->table_name}` (`id`, `from`, `to`, `msgid`, `msgtype`, `createtime`, `content`, `picurl`, `location_x`, `location_y`, `scale`, `label`, `title`, `description`, `url`, `event`, `eventkey`, `format`,`recognition`,`mediaid`, `thumbmediaid`, `response`) VALUES(null,'{$from}','{$to}','{$msgid}', '{$msgtype}','{$createtime}', '{$content}','{$picurl}','{$location_x}', '{$location_y}','{$scale}', '{$label}', '{$title}','{$description}', '{$url}', '{$event}','{$eventkey}','{$format}', '{$recognition}', '{$mediaid}','{$thumbmediaid}', '{$response}')";
+		$scale, $label, $title, $description, $url, $event,$eventkey,$format, $recognition, $mediaid,$thumbmediaid, $response, $response_time){
+		$sql = "INSERT INTO `{$this->table_name}` (`id`, `from`, `to`, `msgid`, `msgtype`, `createtime`, `content`, `picurl`, `location_x`, `location_y`, `scale`, `label`, `title`, `description`, `url`, `event`, `eventkey`, `format`,`recognition`,`mediaid`, `thumbmediaid`, `response`, `response_time`) VALUES(null,'{$from}','{$to}','{$msgid}', '{$msgtype}','{$createtime}', '{$content}','{$picurl}','{$location_x}', '{$location_y}','{$scale}', '{$label}', '{$title}','{$description}', '{$url}', '{$event}','{$eventkey}','{$format}', '{$recognition}', '{$mediaid}','{$thumbmediaid}', '{$response}', '{$response_time}')";
 		//echo $sql;
 		return $this->linkID->query($sql);
 	}
@@ -273,7 +274,7 @@ class weixin_robot_api_wordpress_dbs{
 	public function weixin_get_data($page_no = 1, $num = 20){
 		$start = ($page_no-1)*$num;
 		$sql = "select `id`,`from`,`to`,`msgtype`,`createtime`,`content`,`picurl`,`location_x`,`location_y`, `scale`, `label`, `title`,"
-			."`description`,`url`,`event`, `eventkey`,`format`,`recognition`,`mediaid`,`thumbmediaid`,`response`"
+			."`description`,`url`,`event`, `eventkey`,`format`,`recognition`,`mediaid`,`thumbmediaid`,`response`, `response_time`"
 			." from `{$this->table_name}` order by `id` desc limit {$start},{$num}";
 		$data  = @$this->linkID->get_results($sql);
 		$newData = array();
@@ -290,6 +291,7 @@ class weixin_robot_api_wordpress_dbs{
 				default:$arr['content'] = $v->content;
 			}
 
+			//菜单点击事件
 			if('CLICK' == $v->event){
 				$data = $this->select_menu_key($v->eventkey);
 				if($data){
@@ -297,19 +299,31 @@ class weixin_robot_api_wordpress_dbs{
 				}else{
 					$arr['content'] = '菜单:已经不存在';
 				}
+			}else if('subscribe' == $v->event){//订阅事件
+				$arr['content'] = '订阅事件';
+			}else if('unsubscribe' == $v->event){//取消订阅事件
+				$arr['content'] = '取消订阅事件';
+			}else if('LOCATION' == $v->event){
+				$arr['content'] = '地理位置上报告事件';
 			}
 
 			$arr['createtime'] = date('Y-m-d H:i:s', $v->createtime);
 			$arr['response'] = $v->response;
+			$arr['response_time'] = $v->response_time;
 			$newData[] = $arr;
 		}
 		return $newData;
 	}
 
 	//查询回复语句
-	public function weixin_get_relpy_data(){
-		$sql = "select `id`,`keyword`,`relpy`,`status`,`time`,`type`"
-			." from `{$this->table_self_keyword}` order by `id` desc";
+	public function weixin_get_relpy_data($kw=''){
+		if(!empty($kw)){
+			$sql = "select `id`,`keyword`,`relpy`,`status`,`time`,`type`"
+				." from `{$this->table_self_keyword}` where `keyword`='{$kw}' order by `id` desc";
+		}else{
+			$sql = "select `id`,`keyword`,`relpy`,`status`,`time`,`type`"
+				." from `{$this->table_self_keyword}` order by `id` desc";
+		}
 		$data  = $this->linkID->get_results($sql);
 		if(empty($data)){
 			return false;

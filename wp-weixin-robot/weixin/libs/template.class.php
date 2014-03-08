@@ -92,6 +92,27 @@ EOF;
 		return $resultStr;
 	}
 
+
+	public function toMsgMusicId($fromUserName, $toUserName, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId){
+		$text = <<<EOF
+<xml>
+	<ToUserName><![CDATA[%s]]></ToUserName>
+	<FromUserName><![CDATA[%s]]></FromUserName>
+	<CreateTime>%s</CreateTime>
+	<MsgType><![CDATA[music]]></MsgType>
+	<Music>
+		<Title><![CDATA[%s]]></Title>
+		<Description><![CDATA[%s]]></Description>
+		<MusicUrl><![CDATA[%s]]></MusicUrl>
+		<HQMusicUrl><![CDATA[%s]]></HQMusicUrl>
+		<ThumbMediaId><![CDATA[%s]]></ThumbMediaId>
+	</Music>
+</xml>
+EOF;
+		$resultStr = sprintf($text, $fromUserName, $toUserName, $this->time, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId);
+		return $resultStr;
+	}
+
 	public function toMsgNews($fromUserName, $toUserName, $News){
 		if(empty($News))
 			exit('send news message not null!!!');

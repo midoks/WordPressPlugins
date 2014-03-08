@@ -46,8 +46,12 @@ class weixin{
 	}
 
 	// response message (music)	
-	public function toMsgMusic($fromUserName, $toUserName, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId){
-		return $this->template->toMsgMusic($fromUserName, $toUserName, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId);
+	public function toMsgMusic($fromUserName, $toUserName, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId=''){
+		if(empty($ThumbMediaId)){
+			return $this->template->toMsgMusic($fromUserName, $toUserName, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId);
+		}else{
+			return $this->template->toMsgMusicId($fromUserName, $toUserName, $Title, $Description, $MusicUrl, $HQMusicUrl, $ThumbMediaId);
+		}
 	}
 
 	// response message (video)	

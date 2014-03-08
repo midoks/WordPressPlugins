@@ -15,11 +15,16 @@ class weixin_robot_event{
 
 	//订阅事件
 	public function subscribeEvent(){
+		//插件接口调用
+		if($wp_plugins = $this->cmd->plugins->dealwith('subscribe', $this->cmd->info)){
+			return $wp_plugins;
+		}
+
 		$s = $this->cmd->options['subscribe'];
 		if(!empty($s)){
 			return $this->cmd->toMsgText($s);
 		}
-		return $this->cmd->toMsgText('感谢你的对小M博客关注(midoks.cachecha.com),正在开发WP微信机器人插件v2中...');
+		return;
 	}
 
 	//取消订阅时间
@@ -27,24 +32,17 @@ class weixin_robot_event{
 		return $this->cmd->toMsgText('谢谢你的使用!!!');
 	}
 
-	//上报地址事件|查天气
-	public function locationEvent(){
+	//上报地址事件(服务号开启后,会每隔5分钟回复一次)
+	public function LOCATIONEvent(){
 		//基本数据
-		$latitude = $this->cmd->info['Location_X'];
-		$longitude = $this->cmd->info['Location_Y'];
-		$precision = $this->cmd->info['Scale'];
-		$label = $this->cmd->info['Label'];
+		$info['Latitude'] = $this->cmd->info['Latitude'];
+		$info['Longitude'] = $this->cmd->info['Longitude'];
+		$info['Precision'] = $this->cmd->info['Precision'];
 
-		if(empty($latitude)){
-			return $this->cmd->toMsgText('没有获取你的数据...!!!');
+		//插件接口调用
+		if($wp_plugins = $this->cmd->plugins->dealwith('location', $info)){
+			return $wp_plugins;
 		}
-
-		include(WEIXIN_ROOT_API.'weixin_robot_api_weather.php');
-		$le = new weixin_robot_api_weather();
-		$info = $le->cmd($latitude, $longitude, $precision, $label);
-		//$latitude = json_encode($this->cmd->info);
-		//return $this->cmd->toMsgText("感谢你提交地址信息!!! +:".$latitude);
-		return $this->cmd->toMsgText($info);
 	}
 
 	//用户已关注时的事件推送
