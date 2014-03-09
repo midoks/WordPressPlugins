@@ -145,7 +145,7 @@ class weixin_robot_textreplay{
 			case 'n': $res = $wp->news($suffix);break;
 			case 'h': $res = $wp->hot($suffix);break;
 			case 'r': $res = $wp->rand($suffix);break;
-			//case '#': $res = $wp->get_tag();break;
+			//case '#': $res = $wp->get_tags();break;
 			case '#': $res = $wp->get_tag_list($suffix);break;
 			case '@': $res = $wp->get_category_data($suffix);break;
 			default: break;
