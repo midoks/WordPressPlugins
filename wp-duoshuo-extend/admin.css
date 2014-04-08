@@ -1,0 +1,41 @@
+<style>
+.wp_duoshuo_ex{
+	font-size:12px;
+	border: 1px solid #ccc;
+}
+.wp_duoshuo_ex .thead{
+	border-top:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+
+.wp_duoshuo_ex a{
+	text-decoration:none;
+}
+
+
+.wp_duoshuo_ex .avatar{
+	margin:0 auto;
+	text-align:center;
+	padding:2px;
+	background: #fff;
+	width:50px;
+	height:50px;
+	border: 1px solid #aaa;
+	border-bottom-color: #999;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+.wp_duoshuo_ex .AD{
+	color:#0B96DE;
+	cursor:pointer;
+}
+
+.wp_duoshuo_ex tr{
+	vertical-align:inherit;
+	font-size:14px;
+}
+.wp_duoshuo_ex td{
+	padding:3px;
+	text-align:center;
+}
+</style>
