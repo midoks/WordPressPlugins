@@ -20,6 +20,7 @@
 - WP查询数据保存:wp-cache-db
 - WP附件管理:wp-am
 - WP代码备份:wp-backup
+- WP多说扩展:wp-duoshuo-extend
 
 ### 捐助
 
