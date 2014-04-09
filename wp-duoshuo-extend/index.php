@@ -110,7 +110,8 @@ console.log('欢迎你使用midoks编写的WordPress插件(WP多说扩展)\\n你
 setTimeout(function(){if(typeof \$.fn.wp_duoshuo_ext !=='undefined'){\$.fn.wp_duoshuo_ext(location.origin, '$title');}},2000);
 </script>
 EOF;
-	echo $script;
+	if(is_single())
+		echo $script;
 }
 
 
