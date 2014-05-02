@@ -233,7 +233,7 @@ function wp_duoshuo_extend_menu_show(){
 		if(is_numeric($paged)){
 			if($paged<=1){$paged = 1;
 			}elseif($paged >= $paged_num){
-			$paged = $paged_num;}else{$paged = 1;}
+			$paged = $paged_num;}
 		}
 	}else{$paged = 1;}
 
