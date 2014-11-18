@@ -1,0 +1,435 @@
+<!-- 聊天界面 -->
+<div style="position:relative;" id="midoks_chat_wrap">
+	<div id="midoks_chat" style="padding:6px;width:500px;background:white;border:1px solid #d3d3d3;top:40px;left:40px;position:fixed;display:none;">
+		<!-- 内容区 -->
+		<div style="float:left;width:346px;margin-top:height:400px;border-right:1px solid #d3d3d3;">
+			<div style="position:relative;left:0px;bottom:0px;cursor:pointer;color:red;text-align:left;" class="close">Close</div>
+			<div class="content" style="height:300px;overflow-x:hidden;border-top:1px solid #d3d3d3;">
+				<div>
+					<!-- 一条数据 -->
+					<!--<div class="user_d_data">
+						<div><span>用户昵称</span> | <span>2013-2-1 h:i:s</span></div>
+						<div><p style="color:blue;">你好</p></div>
+					</div>-->
+
+					
+				</div>
+			</div>
+
+			<div class="input">
+				<!-- input content -->
+
+				<div class="input_content" style="height:80px;border-color: #66afe9;outline: 0;
+					-webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,0.075),0 0 8px rgba(102,175,233,0.6);
+					box-shadow: inset 0 1px 1px rgba(0,0,0,0.075),0 0 8px rgba(102,175,233,0.6);" contentEditable="true">
+				</div>
+				<!-- button -->
+				<div>
+					<div class="button-primary send_text" style="cursor:pointer;">发送</div>
+					<!--<div class="button-primary send_pic" style="cursor:pointer;">发送图片</div>
+					<div class="button-primary send_music" style="cursor:pointer;">发送音乐</div>-->
+				</div>
+			</div>
+		</div>
+
+		<!-- 用户信息 -->
+		<div style="float:left;margin-left:2px;width:150px;height:400px;">
+			<div style="text-align:center;border: 1px solid #aaa;height:128px;padding-top:20px;">
+				<img src="http://tp1.sinaimg.cn/1504761980/50/5647448645/1" width="100px" height="100px" class="headimgurl"/>
+			</div>
+			<div>昵称:<span class="nickname">用户的昵称</span></div>
+			<div>性别:<span class="sex">用户的性别</span></div>
+			<div>地址:<span class="addr">用户所在地址</span></div>
+			<div>语言:<span class="language">用户语言</span></div>
+			<div>关注时间:<span class="subscribe_time">用户关注时间</span></div>
+			<div><span class="open_id" style="display:none;"></span></div>
+		</div>
+		
+	</div>
+</div>
+<script>
+
+Date.prototype.format = function(format){
+	var o = {
+		"Y+" : this.getYear(), //year 
+		"M+" : this.getMonth()+1, //month 
+		"d+" : this.getDate(), //day 
+		"h+" : this.getHours(), //hour 
+		"m+" : this.getMinutes(), //minute 
+		"s+" : this.getSeconds(), //second 
+		"q+" : Math.floor((this.getMonth()+3)/3), //quarter 
+		"S" : this.getMilliseconds() //millisecond 
+	} 
+
+	if(/(y+)/.test(format)) { 
+		format = format.replace(RegExp.$1, (this.getFullYear()+"").substr(4 - RegExp.$1.length)); 
+	} 
+
+	for(var k in o) { 
+		if(new RegExp("("+ k +")").test(format)) {
+			format = format.replace(RegExp.$1, RegExp.$1.length==1 ? o[k] : ("00"+ o[k]).substr((""+ o[k]).length)); 
+		} 
+	} 
+	return format; 
+}
+
+jQuery(function($){
+	//数据事件绑定初始化
+	var l = $('#user_info .in_out_event');
+	$(l).each(function(i){
+		
+		$(this).mouseover(function(){
+			$(this).css('background', 'gray');
+			menu_init(function(){
+				return [
+					{value:'回复', callback:function(){
+						$.fn.Toast('正在拉取数据中...',800);
+						weixin_robot_stat_chat($(l)[i]);
+					}},
+				];
+			});
+		});
+
+		//离开
+		$(this).mouseout(function(){
+			$(this).css('background', '');
+			window.document.oncontextmenu = true;
+		});
+		if(20 == (i+1)){
+			$.fn.Toast("初始化完成!!!", 5000);
+		}	
+	});
+//------------------------
+	//初始化宽度和高度
+	function _wh(){
+		var w = $(window).width();
+		var h = $(window).height();
+
+		//$('#midoks_chat_wrap').css('width', w)
+		//	.css('height', h).css('background', 'gray');
+	
+		var midoks_w = $('#midoks_chat').width();
+		var midoks_h = $('#midoks_chat').height();
+		//console.log(h, midoks_h, w, midoks_w);
+		//console.log(h>midoks_h?((h-midoks_h)/2):0);
+		//console.log(w>midoks_w?((w-midoks_w)/2):0);
+		$('#midoks_chat').css('top', h>midoks_h?((h-midoks_h)/2):0 )
+			.css('left', w>midoks_w?((w-midoks_w)/2):0).css('position', 'fixed');
+	}
+	_wh();
+	$(window).resize(function(){
+		_wh();
+	});
+
+	//send_text
+	$('#midoks_chat .send_text').click(function(){
+		var input =  $('#midoks_chat .input_content');
+		var content = $.trim($(input).html());
+	
+		if(''== content){
+			$.fn.Toast('内容不能为空!!!');
+		}else{
+			
+			var open_id = $('#midoks_chat .open_id');
+			if('' == $(open_id).html()){
+				$.fn.Toast('无效OPEND ID');return;
+			}
+			//console.log(content);
+			send_ajax({msg:content,
+				method:'send_text',
+				user_id:$(open_id).html(),},
+			function(d){
+				console.log(d);
+				if('ok' == d['errmsg']){
+					$.fn.Toast('发送成功!!!');
+
+					//var nick = $('#midoks_chat .nickname').html();
+					var time = (new Date()).format('yyyy-MM-dd hh:mm:ss');
+					$('#midoks_chat .content').append("<div class='user_d_data'>"+
+						"<div><span>自己</span> | <span>"+ time +"</span>"
+						+"</div><div><p style='color:blue;'>"+ content +"</p></div></div>");
+
+					$('#midoks_chat .input_content').html('');
+				}else{
+					$.fn.Toast('发送失败!!!');
+				}
+
+				//$('#midoks_chat .input_content').html('');
+			});
+		}
+	});
+
+	//send_pic
+	/*$('#midoks_chat .send_pic').click(function(){
+		console.log('send_pic');
+	});*/
+
+
+	//music
+	/*$('#midoks_chat .send_music').click(function(){
+		console.log('send_music');
+	});*/
+
+
+	
+//切换整体效果
+	$('.change_user_info').bind('click',function(){
+		var l = $('#user_info .in_out_event');
+
+		var j = $('.wp_weixin_robot_table_head_tr');
+		var j_c = ($(j).children());
+
+		$(j_c[2]).after("<td class='wp_weixin_robot_table_head_td'"
+			+ "style='width:100px;color:#21759b;' scope='col'>用户详情</td>");
+		//console.log(l);
+		//console.log(j);
+
+		$(l).each(function(i){
+			//console.log(this);
+			var c = $(this).children();
+			var id = $(c[2]).html();
+
+			//id = 'of6wBuP54x929znVYV9ta4iOShJQ';
+			//测试时,隐藏
+			if('userid' == id){
+				_this.fn.Toast('这是测试ID');
+				$(c[2]).after("<td class='wp_weixin_robot_table_head_td'" 
+					+"style='width:100px;color:red;' scope='col'>获取不到!!</td>");
+				return;
+			}
+
+			send_ajax({
+				method:'user_info',
+				user_id:id
+				},function(info){
+
+				if(typeof info['errcode'] != 'undefined'){
+					_this.fn.Toast(info['errmsg']);
+					$(c[2]).after("<td class='wp_weixin_robot_table_head_td'" 
+					+"style='width:100px;color:red;' scope='col'>" + info['errmsg'] +"</td>");
+					return;
+				}
+				//console.log(info);
+//start each info
+var info_str = '';
+info_str = '用户昵称:' + info['nickname'] + "\n";
+info_str += "使用语言:" + info['language'] + "\n";
+	var addr = info['country'];
+	addr += info['province'];
+	addr += info['city'];
+info_str += "所在地区:" + addr + "\n";
+info_str += "关注时间:" + info['subscribe_time'] + "\n";
+	if(info['sex'] == 0){
+		var sex = '未知';
+	}else{
+		var sex = info['sex'] == 1 ?　'男' : '女';
+	}
+info_str += "性别:" + sex + "\n";
+//console.log(info_str);
+				var user = "<div style='text-align:center;border: 1px solid #aaa;height:80px;padding-top:5px;padding-bottom:5px;'>"+
+				"<img src='"+ info['headimgurl'] +"' width='80px' height='80px' title='"+info_str+"'/></div>";
+				//var user_str = '用户信息';
+				$(c[2]).after("<td class='wp_weixin_robot_table_head_td'" 
+					+"style='width:100px;color:#21759b;' scope='col'>"+user+"</td>");
+//end each user info
+			});
+
+			
+			//console.log(id);
+		});
+		//console.log('切换用户状态');
+		//解除绑定
+		$(this).unbind('click');
+	});
+
+	//-----------------------------
+	/*setInterval(function(){
+		console.log('test');
+	}, 3000);*/
+	
+
+	function send_ajax(p,c){
+		var p = $.extend({
+			page:'weixin_robot_stat',
+		},p);
+		//console.log(p,c);
+		$.ajax({
+			type:'POST',
+			url:'admin.php?'+(new Date()).getTime(),
+			data:p,
+			success:function(d){
+				if(d == ''){
+					$.fn.Toast('没有获取到数据!!!');return;
+				}	
+				d = eval('(' + d + ')');
+				c(d);
+			}
+		});
+	}
+
+//一直拉取数据
+var time_interval_id = null;
+
+//get_user_chat_info | {}, callback
+function weixin_robot_stat_chat_info(obj, callback){
+	var open_id = $('#midoks_chat .open_id');
+	send_ajax({
+		method  : 'get_user_reply',
+		user_id : $(open_id).html(),
+		time_at : obj.time_at,
+	},function(d){
+		callback(d);
+	});
+}
+
+
+
+//start
+function weixin_robot_stat_chat(e){
+	
+	var c = _this(e).children();
+	var id = _this(c[2]).html();
+
+	//id = 'of6wBuP54x929znVYV9ta4iOShJQ';
+	//测试时,隐藏
+	if('userid' == id){
+		_this.fn.Toast('这是测试ID');return;
+	}
+
+	_this.ajax({
+		type: 'POST',
+		url: 'admin.php',
+		data: {
+			page:'weixin_robot_stat',
+			method:'user_info',
+			user_id:id,
+		},	
+		success: function(data){
+
+			//服务号检测
+			if('请填写服务号完整信息!!!' == data){
+				_this.fn.Toast(data);return;
+				return;
+			}
+
+			//数据为空
+			if(''==data){
+				_this.fn.Toast('拉取失败!!!,你在本地测试?');return;
+			}
+			//console.log(data);
+			try{
+				var user_info = eval('(' + data + ')');
+				if(40013==user_info['errcode']){
+					_this.fn.Toast('无效的开发者ID(invalid appid)', 5000);return;
+				}
+
+				if(40003==user_info['errcode']){
+					_this.fn.Toast('无效的用户ID(invalid openid)', 5000);return;
+				}
+				
+				if(40001==user_info['errcode'] || 42001 == user_info['errcode']){
+					_this.fn.Toast('你的token已经过期,请不要在两个地方使用!!!', 5000);return;
+				}
+
+				if(typeof user_info['errcode'] != 'undefined'){
+					_this.fn.Toast(user_info['errmsg']);return;
+				}
+
+			}catch(e){
+				//console.log(e);
+				//_this.fn.Toast('拉取失败!!!');	
+			}
+			//console.log(user_info);
+			if(typeof user_info.errmsg == 'undefined'){
+				user_info_details(user_info);
+			}else{
+				_this.fn.Toast('拉取失败!!!');
+			}
+		}
+	});
+}
+
+
+function user_info_details(info){
+	//console.log(info);
+	_this('#midoks_chat .nickname').html(info['nickname']);
+	_this('#midoks_chat .language').html(info['language']);
+	_this('#midoks_chat .headimgurl').attr('src', info['headimgurl']);
+
+	var addr = info['country'];
+	addr += info['province'];
+	addr += info['city'];
+	_this('#midoks_chat .addr').html(addr);
+	//var DateTime = new Date(info['subscribe_time']*1000);
+	_this('#midoks_chat .subscribe_time').html(info['subscribe_time']);
+	//_this('#midoks_chat .subscribe_time').html((DateTime.getYear()+1900) + '年' + (DateTime.getMonth() + 1) + '月' + DateTime.getDay() +'日 ' + DateTime.getHours() + ':' + DateTime.getMinutes() + ':' + DateTime.getSeconds());
+	
+	if(info['sex'] == 0){
+		var sex = '未知';
+	}else{
+		var sex = info['sex'] == 1 ?　'男' : '女';
+	}
+	_this('#midoks_chat .sex').html(sex);
+	_this('#midoks_chat .open_id').html(info['openid']);
+	//$('#midoks_chat .nickname').html(info['nickname']);
+	_this('#midoks_chat').css('display', 'block');
+
+	_this.fn.Toast('拉取成功!!!');
+
+	//console.log(time_interval_id);
+	clearInterval(time_interval_id);
+	time_interval_id = setInterval(function(){
+
+		//var h_l = (new Date()).getTimezoneOffset();
+		//var t = ((new Date()).getTime() - (new Date()).getTimezoneOffset()*60*1000).toString();
+		//console.log(t, (new Date()).getTimezoneOffset()*1000);
+		var t = (new Date()).getTime().toString();
+		var time = t.substr(0,10);
+		weixin_robot_stat_chat_info({
+			time_at:time,
+		},function(d){
+			if('no' == d.errmsg){
+				//_this.fn.Toast('没有数据!!!');
+			}else{
+				var nick = $('#midoks_chat .nickname').html();
+				for(i in d){	
+					//console.log((new Date()).setTime(d[i]['n_time']*1000).format('yyyy-MM-dd hh:mm:ss'));
+					$('#midoks_chat .content').append("<div class='user_d_data'>"+
+						"<div><span>"+ nick +"</span> | <span>"+ d[i]['createtime'] +"</span>"
+						+"</div><div><p style='color:red;'>"+ d[i]['content'] +"</p></div></div>");
+
+				}
+				//console.log(d);
+			}
+		});
+	}, 3000);
+	//close
+	$('#midoks_chat .close').click(function(){
+		$('#midoks_chat').css('display', 'none');
+		clearInterval(time_interval_id);
+	});
+}
+//end
+});
+
+//---------
+//@func 右键初始化
+function menu_init(callback){
+	//console.log(callback);
+	_this.contextMenus({
+		color:'#45649e',
+		boxShadow :'1px 1px 2px rgb(50, 50, 50)',
+		fontFamily : 'tahoma, helvetica, clean, sans-serif',
+		fontSize : '12px',
+		backgroundColor : '#fff',
+		width : '190px',
+		position: 'fixed',
+		overflow:'hidden',
+		cursor : 'pointer',
+		border:'1px solid #b8cbcb',
+		webkitBoxShadow : '2px 2px 5px rgb(50, 50, 50)',
+		mozBoxShadow : '2px 2px 5px rgb(50, 50, 50)',
+		overflow : 'hidden',
+	}).insert(callback()).show();
+}
+</script>

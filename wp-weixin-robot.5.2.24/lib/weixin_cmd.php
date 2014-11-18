@@ -4,7 +4,7 @@
  *	Author: Midoks
  *  Author URI: http://midoks.cachecha.com/
  */
-include(WEIXIN_ROOT.'weixin-core.class.php');
+include_once(WEIXIN_ROOT.'weixin-core.class.php');
 class weixin_cmd extends weixin_core{
 
 	public $info_xml = '';//解析前的数据
@@ -21,21 +21,9 @@ class weixin_cmd extends weixin_core{
 	public function __construct(){
 		$this->options = get_option('weixin_robot_options');
 		parent::__construct();
-		//处理信息
-		if(!isset($GLOBALS['HTTP_RAW_POST_DATA'])){
-			$data = file_get_contents('php://input');
-			if(!empty($data))
-				$this->info_xml = $data;
-			else
-				if(!isset($_GET['debug']))
-					exit('你的请求问题!!!');
-		}else{
-			$this->info_xml = $GLOBALS['HTTP_RAW_POST_DATA'];//POST数据
-		}
-		//解析后的数据
-		$this->info = $this->parse_xml($this->info_xml);
+		
 
-		include(WEIXIN_ROOT_API.'weixin_robot_api_wordpress_dbs.php');
+		include_once(WEIXIN_ROOT_API.'weixin_robot_api_wordpress_dbs.php');
 		$this->db = new weixin_robot_api_wordpress_dbs();//WP数据管理
 
 		include_once(WEIXIN_ROOT_API.'weixin_robot_api_wordpress.php');
@@ -57,6 +45,20 @@ class weixin_cmd extends weixin_core{
 	 *	@ret xml
 	 */
 	public function cmd(){
+		//处理信息
+		if(!isset($HTTP_RAW_POST_DATA)){
+			$data = file_get_contents('php://input');
+			if(!empty($data))
+				$this->info_xml = $data;
+			else
+				if(!isset($_GET['debug']))
+					exit('你的请求问题!!!');
+		}else{
+			$this->info_xml = $HTTP_RAW_POST_DATA;//POST数据
+		}
+		//解析后的数据
+		$this->info = $this->parse_xml($this->info_xml);
+
 		//提交后的数据
 		if(empty($this->info_xml)){
             //显示模拟信息
@@ -130,6 +132,15 @@ class weixin_cmd extends weixin_core{
 
 		//事件
 		$event = isset($info['Event']) ? $info['Event']: '';
+
+		//事件中的特殊操作
+		if('TEMPLATESENDJOBFINISH'==$info['Event']){
+			$content = '模版发送返回消息'.$info['Status'];
+		}else if('MASSSENDJOBFINISH' == $info['Event']){
+			$content = '事件推送群发结果:'.$info['Status'].
+			'成功发送粉丝:'.$info['SentCount'].',失败发送粉丝:'.$info['ErrorCount'];
+		}
+
 		$eventkey = isset($info['EventKey']) ? $info['EventKey']: '';
 
 		//语音识别
@@ -293,6 +304,15 @@ class weixin_cmd extends weixin_core{
 		}
 	}
 
+	public function font(){
+		$data = $this->db->select_extends();
+		if($data){
+			foreach($data as $k=>$v){
+				//对已经启用进行后台调用
+				$this->plugins->font($v['ext_cn']);
+			}
+		}
+	}
 
 /******************************消息回复*************************************/
 	
