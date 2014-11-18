@@ -11,4 +11,7 @@
 
 /* Exit if accessed directly */
 if ( ! defined( 'ABSPATH' ) ) exit;
-add_filter('get_avatar', 'disable_get_avatar', 1, 4, false);
+add_filter('get_avatar', 'disable_get_avatar', 1, 4, false); 
+function disable_get_avatar($id_or_email, $size, $default, $alt ){
+	return false;
+}
