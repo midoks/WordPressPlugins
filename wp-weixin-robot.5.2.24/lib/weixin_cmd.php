@@ -17,11 +17,13 @@ class weixin_cmd extends weixin_core{
 	public $options = array();
 	public $replay_type = '';
 
+	public $is_safe_mode = false;//是否为安全模式
+
 	//架构函数
 	public function __construct(){
+		
 		$this->options = get_option('weixin_robot_options');
 		parent::__construct();
-		
 
 		include_once(WEIXIN_ROOT_API.'weixin_robot_api_wordpress_dbs.php');
 		$this->db = new weixin_robot_api_wordpress_dbs();//WP数据管理
@@ -31,7 +33,9 @@ class weixin_cmd extends weixin_core{
 
 		include_once(WEIXIN_ROOT.'wp-weixin-plugins.php');
 		$this->plugins = new wp_weixin_plugins($this);//插件管理对象
-		
+
+		//编码编码和解码类
+		include_once(WEIXIN_ROOT.'weixin_crypt/wxBizMsgCrypt.php');
 	}
 
 	//解析xml文件
@@ -46,7 +50,7 @@ class weixin_cmd extends weixin_core{
 	 */
 	public function cmd(){
 		//处理信息
-		if(!isset($HTTP_RAW_POST_DATA)){
+		if(!isset($GLOBALS["HTTP_RAW_POST_DATA"])){
 			$data = file_get_contents('php://input');
 			if(!empty($data))
 				$this->info_xml = $data;
@@ -54,39 +58,19 @@ class weixin_cmd extends weixin_core{
 				if(!isset($_GET['debug']))
 					exit('你的请求问题!!!');
 		}else{
-			$this->info_xml = $HTTP_RAW_POST_DATA;//POST数据
+			$this->info_xml = $GLOBALS["HTTP_RAW_POST_DATA"];//POST数据
 		}
 		//解析后的数据
 		$this->info = $this->parse_xml($this->info_xml);
+		//file_put_contents(WEIXIN_ROOT.'info.txt', $this->info_xml);
 
-		//提交后的数据
-		if(empty($this->info_xml)){
-            //显示模拟信息
-          	//测试地址:www.cachecha.com/?midoks&debug=1
-			if(isset($_GET['debug'])){
-				if('true' == $this->options['weixin_robot_debug']){
-					$array['MsgType'] = 'text';//text,event,
-					$array['FromUserName'] = 'userid';
-					$array['ToUserName'] = 'openid';
-					$array['CreateTime'] = time();
-					$array['Content'] = (isset($_GET['kw']))?$_GET['kw']:'?';
-
-					//事件名
-					//$array['MsgType'] = 'event';//text,event,
-					//$array['Event'] = 'LOCATION';
-					//$array['EventKey'] = 'MENU_1386835496';
-					//
-					//$array['Location_X'] = 'Location_X';
-					//$array['Location_Y'] = 'Location_Y';
-					//$array['Scale'] = 'Scale';
-					//$array['Label'] = 'Label';
-
-					$this->info = $array;
-				}else{
-					exit('哈哈,哈哈哈,哈哈,哼,你走吧!!!');
-				}
-			}
+		//安全检查和设置
+		if($this->check_safe_mode()){
+			$this->set_safe_data();
 		}
+
+		//设置debug模式
+		$this->set_debug_mode();
 
 		//插件接口调用//回复选择
 		if($wp_plugins = $this->plugins->dealwith('all', $this->info)){
@@ -95,11 +79,25 @@ class weixin_cmd extends weixin_core{
 			$result = $this->cmd_choose();
 		}
 
-
+		//安全模式下,返回数据转换
+		if($this->is_safe_mode){
+			//file_put_contents(WEIXIN_ROOT.'config.txt', json_encode($this->options));
+			//$msg = str_replace(array("\r", "\n", "\r\n", ''), '',$msg);
+			//file_put_contents(WEIXIN_ROOT.'result.txt', $result);
+			$result_en = $this->encode_data($result);
+			//file_put_contents(WEIXIN_ROOT.'result_en.txt', $result_en);
+			$info = $this->parse_xml($result_en);
+			//file_put_contents(WEIXIN_ROOT.'data.txt', json_encode($info));
+			if(!empty($info['Encrypt'])){
+				$result = $result_en;
+			}
+		}
+		
 		//开启数据库记录判断
 		if($this->options['weixin_robot_record']){
 			$this->weixin_robot_wp_db_insert();
 		}
+	
 		return $result;
 	}
 
@@ -289,9 +287,6 @@ class weixin_cmd extends weixin_core{
 		//return $this->helper("谢谢你的连接信息");
 	}
 
-
-
-
 	//返回帮助信息
 	public function helper($string = ''){
 		if($this->options['weixin_robot_helper_is'] != 'true'){
@@ -324,6 +319,110 @@ class weixin_cmd extends weixin_core{
   	//小图片地址
   	public function smallPic(){
   		return WEIXIN_ROOT_NA.'80_80/'.mt_rand(1,10).'.jpg';
-  	}
+	}
+
+
+	//设置debug模式
+	public function set_debug_mode(){
+		if(empty($this->info_xml)){
+            //显示模拟信息
+          	//测试地址:www.cachecha.com/?midoks&debug=1
+			if(isset($_GET['debug'])){
+				if('true' == $this->options['weixin_robot_debug']){
+					$array['MsgType'] = 'text';//text,event,
+					$array['FromUserName'] = 'userid';
+					$array['ToUserName'] = 'openid';
+					$array['CreateTime'] = time();
+					$array['Content'] = (isset($_GET['kw']))?$_GET['kw']:'?';
+
+					//事件名
+					//$array['MsgType'] = 'event';//text,event,
+					//$array['Event'] = 'LOCATION';
+					//$array['EventKey'] = 'MENU_1386835496';
+					//
+					//$array['Location_X'] = 'Location_X';
+					//$array['Location_Y'] = 'Location_Y';
+					//$array['Scale'] = 'Scale';
+					//$array['Label'] = 'Label';
+					//
+					
+					//var_dump($this->options);
+
+					
+					$this->info = $array;
+				}else{
+					exit('哈哈,哈哈哈,哈哈,哼,你走吧!!!');
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * 检查是否为安全模式
+	 * ret bool
+	 */ 
+	public function check_safe_mode(){
+		if(isset($this->info['Encrypt'])){
+			$this->is_safe_mode = true;
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 *	@func 设置解码后的数据
+	 */
+	public function set_safe_data(){
+		$text = $this->info_xml;
+		$decode_data = $this->decode_data($text);
+		$this->info = $this->parse_xml($decode_data);
+	}
+
+	/**
+	 *	@func 数据安全 编码
+	 */
+	public function encode_data($text){
+		$token = WEIXIN_TOKEN;
+		$encodingAesKey = $this->options['EncodingAESKey'];
+		$appId = $this->options['ai'];
+		$pc = new WXBizMsgCrypt($token, $encodingAesKey, $appId);
+
+		$timeStamp = time();
+		$encryptMsg = '';
+		$nonce = $_GET['nonce'];
+		$retCode = $pc->encryptMsg($text, $timeStamp, $nonce, $encryptMsg);
+		if($retCode == 0){
+			return $encryptMsg;
+		}
+		return $text;
+	}
+
+	/**
+	 *	@func 数据安全 解码
+	 */
+	public function decode_data($text){
+		$token = WEIXIN_TOKEN;
+		$encodingAesKey = $this->options['EncodingAESKey'];
+		$appId = $this->options['ai'];
+		$pc = new WXBizMsgCrypt($token, $encodingAesKey, $appId);
+
+		$timeStamp = time();
+		$nonce = $_GET['nonce'];
+
+		$sha1 = new SHA1;
+		$array = $sha1->getSHA1($token, $timeStamp, $nonce, $this->info['Encrypt']);
+		$ret = $array[0];
+		if ($ret != 0) {
+			return $ret;
+		}
+		$msg_sign = $array[1];
+		
+		$retCode = $pc->decryptMsg($msg_sign, $timeStamp, $nonce, $text, $msg);
+		if($retCode == 0){
+			return $msg;
+		}
+		return $text;
+	}
 }
 ?>

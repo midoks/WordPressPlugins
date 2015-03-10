@@ -3,7 +3,7 @@
 Plugin Name: WP微信机器人
 Plugin URI: http://midoks.cachecha.com/
 Description: Weixin connected to the WordPress, use the information you faster (微信连接Wordpress,使你的传播的信息更快)
-Version: 5.2.24
+Version: 5.2.25
 Author: Midoks
 Author URI: http://midoks.cachecha.com/
 */
